@@ -1,0 +1,38 @@
+# .gitignore
+# This file specifies intentionally untracked files that Git should ignore.
+# Add the .env file to prevent sensitive information from being committed to version control.
+
+# Environment variables
+.env
+
+# Node modules
+node_modules/
+
+# build output for Create React App
+build/
+
+# build output for Vite
+dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.pnpm-store/
+
+# IDE files
+.vscode/
+.idea/
+
+# macOS files
+.DS_Store
+
+# npm package manager cache
+.npm/
+
+# other common ignored files
+*.log
+*.tmp
+*.bak
+*.swp
