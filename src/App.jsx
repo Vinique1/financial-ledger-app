@@ -239,6 +239,8 @@ export default function App() {
               salesData={salesData}
               expensesData={expensesData}
               inventoryData={inventoryData}
+              startDateFilter={startDateFilter}
+              endDateFilter={endDateFilter}
             />
           )}
           {activeTab === 'sales' && <SalesManagement />}

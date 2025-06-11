@@ -111,11 +111,11 @@ export default function InventoryManagement() {
               return (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="p-3 text-sm text-gray-800">{item.itemName}</td>
-                  <td className="p-3 text-center text-sm text-gray-800">{item.qtyIn}</td>
-                  <td className="p-3 text-center text-sm text-gray-800">{item.qtyOut}</td>
-                  <td className="p-3 text-center text-sm font-bold text-gray-800">{currentStock}</td>
-                  <td className="p-3 text-center text-sm text-gray-800">₦{item.costPrice.toFixed(2)}</td>
-                  <td className="p-3 text-center text-sm text-gray-800">₦{stockValue.toFixed(2)}</td>
+                  <td className="p-3 text-center text-sm text-gray-800">{item.qtyIn.toLocaleString()}</td>
+                  <td className="p-3 text-center text-sm text-gray-800">{item.qtyOut.toLocaleString()}</td>
+                  <td className="p-3 text-center text-sm font-bold text-gray-800">{currentStock.toLocaleString()}</td>
+                  <td className="p-3 text-center text-sm text-gray-800">₦{item.costPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="p-3 text-center text-sm text-gray-800">₦{stockValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="p-3 text-center">
                     <DropdownMenu>
                       <ActionButton onClick={() => setEditingInventoryId(item.id)} color="blue">Edit</ActionButton>

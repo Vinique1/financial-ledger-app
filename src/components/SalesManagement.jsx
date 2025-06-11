@@ -157,10 +157,10 @@ export default function SalesManagement() {
                               <td className="p-3 text-sm text-gray-800">{sale.date}</td>
                               <td className="p-3 text-sm text-gray-800">{sale.item}</td>
                               <td className="p-3 text-sm text-gray-800">{sale.customer}</td>
-                              <td className="p-3 text-center text-sm text-gray-800">{sale.qty}</td>
-                              <td className="p-3 text-center text-sm text-gray-800">₦{sale.price.toFixed(2)}</td>
-                              <td className="p-3 text-center text-sm text-gray-800">₦{totalCost.toFixed(2)}</td>
-                              <td className="p-3 text-center text-sm text-gray-800">₦{profit.toFixed(2)}</td>
+                              <td className="p-3 text-center text-sm text-gray-800">{sale.qty.toLocaleString()}</td>
+                              <td className="p-3 text-center text-sm text-gray-800">₦{sale.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                              <td className="p-3 text-center text-sm text-gray-800">₦{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                              <td className="p-3 text-center text-sm text-gray-800">₦{profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                               <td className="p-3 text-center">
                                   <DropdownMenu>
                                       <ActionButton onClick={() => setEditingSaleId(sale.id)} color="blue">Edit</ActionButton>

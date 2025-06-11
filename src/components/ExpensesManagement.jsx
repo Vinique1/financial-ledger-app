@@ -111,7 +111,7 @@ export default function ExpensesManagement() {
                 <td className="p-3 text-sm text-gray-800">{expense.date}</td>
                 <td className="p-3 text-sm text-gray-800">{expense.item}</td>
                 <td className="p-3 text-sm text-gray-800">{expense.category}</td>
-                <td className="p-3 text-center text-sm text-gray-800">₦{expense.amount.toFixed(2)}</td>
+                <td className="p-3 text-center text-sm text-gray-800">₦{expense.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td className="p-3 text-center">
                   <DropdownMenu>
                     <ActionButton onClick={() => setEditingExpenseId(expense.id)} color="blue">Edit</ActionButton>

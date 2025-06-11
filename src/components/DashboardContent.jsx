@@ -1,6 +1,6 @@
 // src/components/DashboardContent.jsx
 import React, { useMemo } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays, getWeek, getYear } from 'date-fns';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -29,7 +29,7 @@ ChartJS.register(
   Filler
 );
 
-export default function DashboardContent({ salesData, expensesData, inventoryData }) {
+export default function DashboardContent({ salesData, expensesData, inventoryData, startDateFilter, endDateFilter }) {
 
   const kpiData = useMemo(() => {
     const totalSales = salesData.reduce((acc, sale) => acc + (sale.qty * sale.price), 0);
@@ -44,64 +44,83 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
 
     return { totalSales, grossProfit, totalExpenses, netProfit, totalInventoryValue };
   }, [salesData, expensesData, inventoryData]);
+  
+  const lineChartData = useMemo(() => {
+    const emptyChart = { labels: [], datasets: [] };
+    if (!startDateFilter || !endDateFilter) {
+      return { salesChart: emptyChart, expensesChart: emptyChart };
+    }
 
-  const monthlySalesChartData = useMemo(() => {
-    const months = {};
-    salesData.forEach(sale => {
-      if (sale.date && typeof sale.date === 'string') {
-        try {
-          const month = format(parseISO(sale.date), 'yyyy-MM');
-          if (!months[month]) {
-            months[month] = 0;
-          }
-          months[month] += (sale.qty * sale.price);
-        } catch (e) {
-          console.warn(`Could not parse date for sale ${sale.id}:`, sale.date);
+    const start = parseISO(startDateFilter);
+    const end = parseISO(endDateFilter);
+    const dayCount = differenceInDays(end, start) + 1;
+
+    let timeUnit, dateFormat;
+
+    if (dayCount <= 60) {
+      timeUnit = 'day';
+      dateFormat = 'MMM d';
+    } else if (dayCount <= 112) { // Approx 16 weeks
+      timeUnit = 'week';
+      dateFormat = (date) => `W${getWeek(date, { weekStartsOn: 1 })} '${getYear(date).toString().slice(-2)}`;
+    } else {
+      timeUnit = 'month';
+      dateFormat = 'MMM yy';
+    }
+
+    const aggregateData = (data, valueField, dateField) => {
+        const aggregation = {};
+        data.forEach(item => {
+            if (item[dateField] && typeof item[dateField] === 'string') {
+                try {
+                    const date = parseISO(item[dateField]);
+                    let key;
+                    if (timeUnit === 'day') {
+                        key = format(date, 'yyyy-MM-dd');
+                    } else if (timeUnit === 'week') {
+                        key = `${getYear(date)}-${getWeek(date, { weekStartsOn: 1 })}`;
+                    } else { // month
+                        key = format(date, 'yyyy-MM');
+                    }
+                    if (!aggregation[key]) aggregation[key] = 0;
+                    aggregation[key] += valueField === 'sales' ? (item.qty * item.price) : item.amount;
+                } catch (e) {
+                    console.warn(`Could not parse date for item ${item.id}:`, item[dateField]);
+                }
+            }
+        });
+        return aggregation;
+    };
+    
+    const aggregatedSales = aggregateData(salesData, 'sales', 'date');
+    const aggregatedExpenses = aggregateData(expensesData, 'expenses', 'date');
+
+    const allKeys = [...new Set([...Object.keys(aggregatedSales), ...Object.keys(aggregatedExpenses)])].sort();
+    
+    const labels = allKeys.map(key => {
+        if (timeUnit === 'day') return format(parseISO(key), dateFormat);
+        if (timeUnit === 'week') {
+            const [year, weekNum] = key.split('-');
+            return `W${weekNum} '${year.slice(-2)}`;
         }
-      }
+        return format(parseISO(key), dateFormat);
     });
 
-    const sortedMonths = Object.keys(months).sort();
-    return {
-      labels: sortedMonths.map(month => format(parseISO(month), 'MMM yy')),
-      datasets: [{
-        label: 'Total Sales',
-        data: sortedMonths.map(month => months[month]),
-        borderColor: 'rgb(54, 162, 235)',
-        backgroundColor: 'rgba(54, 162, 235, 0.5)',
-        fill: true,
-      }],
-    };
-  }, [salesData]);
+    const salesValues = allKeys.map(key => aggregatedSales[key] || 0);
+    const expensesValues = allKeys.map(key => aggregatedExpenses[key] || 0);
 
-  const monthlyExpensesChartData = useMemo(() => {
-    const months = {};
-    expensesData.forEach(expense => {
-      if (expense.date && typeof expense.date === 'string') {
-        try {
-          const month = format(parseISO(expense.date), 'yyyy-MM');
-          if (!months[month]) {
-            months[month] = 0;
-          }
-          months[month] += expense.amount;
-        } catch (e) {
-          console.warn(`Could not parse date for expense ${expense.id}:`, expense.date);
+    return {
+        salesChart: {
+            labels,
+            datasets: [{ label: 'Total Sales', data: salesValues, borderColor: 'rgb(54, 162, 235)', backgroundColor: 'rgba(54, 162, 235, 0.5)', fill: true }],
+        },
+        expensesChart: {
+            labels,
+            datasets: [{ label: 'Total Expenses', data: expensesValues, borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.5)', fill: true }],
         }
-      }
-    });
-
-    const sortedMonths = Object.keys(months).sort();
-    return {
-      labels: sortedMonths.map(month => format(parseISO(month), 'MMM yy')),
-      datasets: [{
-        label: 'Total Expenses',
-        data: sortedMonths.map(month => months[month]),
-        borderColor: 'rgb(255, 99, 132)',
-        backgroundColor: 'rgba(255, 99, 132, 0.5)',
-        fill: true,
-      }],
     };
-  }, [expensesData]);
+}, [salesData, expensesData, startDateFilter, endDateFilter]);
+
 
   const expenseCategoryChartData = useMemo(() => {
     const categories = expensesData.reduce((acc, expense) => {
@@ -211,13 +230,13 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-xl font-semibold mb-4 text-gray-800">Sales Over Time</h3>
           <div className="h-96">
-              <Line data={monthlySalesChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+              <Line data={lineChartData.salesChart} options={{ responsive: true, maintainAspectRatio: false }} />
           </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-xl font-semibold mb-4 text-gray-800">Expenses Over Time</h3>
           <div className="h-96">
-              <Line data={monthlyExpensesChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+              <Line data={lineChartData.expensesChart} options={{ responsive: true, maintainAspectRatio: false }} />
           </div>
         </div>
       </div>
