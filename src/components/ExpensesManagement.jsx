@@ -17,6 +17,9 @@ export default function ExpensesManagement() {
     expensesSortDirection, setExpensesSortDirection,
   } = useData();
 
+  // Define categories locally to populate the dropdown
+  const expenseCategories = ['Rent', 'Salaries', 'Utilities', 'Marketing', 'Supplies', 'Maintenance', 'Transportation', 'Miscellaneous'];
+
   const initialExpenseFormState = {
     date: new Date().toISOString().slice(0, 10),
     item: '',
@@ -78,7 +81,19 @@ export default function ExpensesManagement() {
           <FormInput id="date" label="Expense Date" type="date" value={formData.date} onChange={handleChange} error={errors.date} />
           <FormInput id="item" label="Item/Description" value={formData.item} onChange={handleChange} error={errors.item} />
           <FormInput id="amount" label="Amount" type="number" value={formData.amount} onChange={handleChange} error={errors.amount} />
-          <FormInput id="category" label="Category" value={formData.category} onChange={handleChange} error={errors.category} />
+          <FormInput
+            id="category"
+            label="Category"
+            type="select"
+            value={formData.category}
+            onChange={handleChange}
+            error={errors.category}
+          >
+            <option value="">Select a category</option>
+            {expenseCategories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </FormInput>
           <div className="md:col-span-2 flex justify-end space-x-2">
             <ActionButton type="submit" color="blue" disabled={isSavingExpense}>{isSavingExpense ? 'Saving...' : 'Save Expense'}</ActionButton>
             <ActionButton type="button" color="gray" onClick={() => { setEditingExpenseId(null); resetForm(); }}>Cancel</ActionButton>

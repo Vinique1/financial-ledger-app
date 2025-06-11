@@ -1,5 +1,5 @@
 // src/hooks/useForm.js
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 /**
  * Custom hook for managing form state, changes, validation, and submission.
@@ -11,59 +11,59 @@ import { useState, useRef, useEffect } from 'react';
 export function useForm(initialState, validate = null) {
   const [formData, setFormData] = useState(initialState);
   const [errors, setErrors] = useState({});
-  const isMounted = useRef(false); // To prevent validation on initial mount
 
-  // Use useEffect to set isMounted to true after the initial render
+  // Use refs to hold the initial state and validate function.
+  // This ensures that our callbacks don't change if the parent component
+  // accidentally re-creates these on every render.
+  const initialStateRef = useRef(initialState);
+  const validateRef = useRef(validate);
+
+  // We also want to update the validate function if it changes
   useEffect(() => {
-    isMounted.current = true;
-  }, []);
+    validateRef.current = validate;
+  }, [validate]);
 
-  const handleChange = (e) => {
-    // Handle change for inputs and selects.
-    // e.target.id works for inputs/selects.
-    // For specific scenarios (e.g., checkbox 'checked' vs 'value'),
-    // you might need to extend this or handle them outside the hook.
+  // This function is now stable and won't be recreated on every render.
+  const handleChange = useCallback((e) => {
     const { id, value, type, checked } = e.target;
     const newValue = type === 'checkbox' ? checked : value;
 
     setFormData((prev) => ({ ...prev, [id]: newValue }));
 
-    // Clear error for this field as user types, but only after initial mount
-    if (isMounted.current && errors[id]) {
-      setErrors((prev) => ({ ...prev, [id]: undefined }));
-    }
-  };
+    // Clear the error for the field being edited as the user types.
+    setErrors((prevErrors) => {
+      // If the specific error doesn't exist, don't update the state.
+      if (!prevErrors[id]) return prevErrors;
+      
+      const newErrors = { ...prevErrors };
+      delete newErrors[id]; // Remove the error key
+      return newErrors;
+    });
+  }, []); // Empty dependency array means this function is created only once.
 
-  const handleSubmit = (callback) => async (e) => {
+  // This function now only depends on `formData`, which is what we want.
+  const handleSubmit = useCallback((callback) => async (e) => {
     e.preventDefault();
 
     let validationErrors = {};
-    if (validate) {
-      validationErrors = validate(formData);
+    if (validateRef.current) {
+      validationErrors = validateRef.current(formData);
     }
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      // You might want to toast an error here if the form is invalid
-      // toast.error('Please correct the form errors.');
       return;
     }
 
-    setErrors({}); // Clear all errors on successful validation
-    await callback(formData); // Call the provided submit handler with current formData
-  };
-
-  const resetForm = () => {
-    setFormData(initialState);
     setErrors({});
-  };
+    await callback(formData);
+  }, [formData]);
 
-  return {
-    formData,
-    setFormData, // Allows setting data for editing
-    errors,
-    handleChange,
-    handleSubmit,
-    resetForm,
-  };
+  // This function is now stable and won't be recreated on every render.
+  const resetForm = useCallback(() => {
+    setFormData(initialStateRef.current);
+    setErrors({});
+  }, []); // Empty dependency array ensures stability.
+
+  return { formData, setFormData, errors, handleChange, handleSubmit, resetForm };
 }

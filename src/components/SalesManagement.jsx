@@ -5,6 +5,7 @@ import { useForm } from '../hooks/useForm';
 import FormInput from './FormInput';
 import ActionButton from './ActionButton';
 import DropdownMenu from './DropdownMenu';
+import SearchableSelect from './SearchableSelect'; // Import the new component
 import toast from 'react-hot-toast';
 
 export default function SalesManagement() {
@@ -24,10 +25,8 @@ export default function SalesManagement() {
     item: '',
     customer: '',
     qty: '',
-    cost: '',
     price: '',
-    totalCost: '',
-    profit: '',
+    cost: '', // Only cost is needed, profit and total are derived
   };
   
   const validateSaleForm = (formData) => {
@@ -46,35 +45,20 @@ export default function SalesManagement() {
     if (editingSaleId) {
       const saleToEdit = salesData.find(s => s.id === editingSaleId);
       if (saleToEdit) {
-        setFormData({
-            date: saleToEdit.date,
-            item: saleToEdit.item,
-            customer: saleToEdit.customer,
-            qty: saleToEdit.qty,
-            cost: saleToEdit.cost,
-            price: saleToEdit.price,
-            totalCost: (saleToEdit.qty * saleToEdit.cost).toFixed(2),
-            profit: ((saleToEdit.qty * saleToEdit.price) - (saleToEdit.qty * saleToEdit.cost)).toFixed(2),
-        });
+        setFormData(saleToEdit);
       }
     } else {
       resetForm();
     }
   }, [editingSaleId, salesData, setFormData, resetForm]);
   
+  // Auto-populate cost when item changes
   useEffect(() => {
-      const { item, qty, price } = formData;
-      const selectedItem = rawInventoryData.find(inv => inv.itemName === item);
-      if (selectedItem && qty && price) {
-          const numQty = parseFloat(qty);
-          const numPrice = parseFloat(price);
-          const cost = selectedItem.costPrice || 0;
-          const totalCost = (numQty * cost).toFixed(2);
-          const totalSale = (numQty * numPrice).toFixed(2);
-          const profit = (totalSale - totalCost).toFixed(2);
-          setFormData(prev => ({ ...prev, cost, totalCost, profit }));
+      const selectedItem = rawInventoryData.find(inv => inv.itemName === formData.item);
+      if (selectedItem) {
+          setFormData(prev => ({ ...prev, cost: selectedItem.costPrice || 0 }));
       }
-  }, [formData.item, formData.qty, formData.price, rawInventoryData, setFormData]);
+  }, [formData.item, rawInventoryData, setFormData]);
 
   const onFormSubmit = (data) => {
     const oldSale = editingSaleId ? salesData.find(s => s.id === editingSaleId) : null;
@@ -83,12 +67,16 @@ export default function SalesManagement() {
     });
   };
 
+  const inventoryOptions = useMemo(() => rawInventoryData.map(inv => ({
+    value: inv.itemName,
+    label: inv.itemName
+  })), [rawInventoryData]);
+
   const sortedSales = useMemo(() => {
     return [...salesData].sort((a, b) => {
         const aVal = a[salesSortColumn];
         const bVal = b[salesSortColumn];
         const order = salesSortDirection === 'asc' ? 1 : -1;
-
         if (typeof aVal === 'string') return aVal.localeCompare(bVal) * order;
         return (aVal - bVal) * order;
     });
@@ -109,19 +97,23 @@ export default function SalesManagement() {
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
         <h2 className="text-2xl font-bold text-gray-700 mb-4">{editingSaleId ? 'Edit Sale' : 'Add New Sale'}</h2>
-        <form onSubmit={handleSubmit(onFormSubmit)} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <form onSubmit={handleSubmit(onFormSubmit)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <FormInput id="date" label="Sale Date" type="date" value={formData.date} onChange={handleChange} error={errors.date} />
-            <FormInput id="item" label="Item" type="select" value={formData.item} onChange={handleChange} error={errors.item}>
-                <option value="">Select an item</option>
-                {rawInventoryData.map(inv => <option key={inv.id} value={inv.itemName}>{inv.itemName}</option>)}
-            </FormInput>
+            <div>
+              <label htmlFor="item" className="block text-sm font-medium text-gray-700">Item</label>
+              <SearchableSelect
+                options={inventoryOptions}
+                value={formData.item}
+                onChange={handleChange}
+                placeholder="Search for an item..."
+              />
+               {errors.item && <p className="text-red-500 text-xs mt-1">{errors.item}</p>}
+            </div>
             <FormInput id="customer" label="Customer" value={formData.customer} onChange={handleChange} error={errors.customer} />
             <FormInput id="qty" label="Quantity" type="number" value={formData.qty} onChange={handleChange} error={errors.qty} />
             <FormInput id="price" label="Sale Price per Unit" type="number" value={formData.price} onChange={handleChange} error={errors.price} />
             <FormInput id="cost" label="Cost per Unit" type="number" value={formData.cost} readOnly disabled />
-            <FormInput id="totalCost" label="Total Cost" type="number" value={formData.totalCost} readOnly disabled />
-            <FormInput id="profit" label="Profit" type="number" value={formData.profit} readOnly disabled />
-            <div className="md:col-span-3 flex justify-end space-x-2">
+            <div className="lg:col-span-3 flex justify-end space-x-2">
                 <ActionButton type="submit" color="blue" disabled={isSavingSale}>{isSavingSale ? 'Saving...' : 'Save Sale'}</ActionButton>
                 <ActionButton type="button" color="gray" onClick={() => { setEditingSaleId(null); resetForm(); }}>Cancel</ActionButton>
             </div>
