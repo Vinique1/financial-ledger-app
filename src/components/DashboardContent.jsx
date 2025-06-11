@@ -38,68 +38,76 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
     return { totalSales, grossProfit, totalExpenses, netProfit };
   }, [salesData, expensesData]);
 
-  const monthlyChartData = useMemo(() => {
+  const monthlySalesChartData = useMemo(() => {
     const months = {};
-    const processData = (data, valueField, dateField) => {
-        data.forEach(item => {
-            // Check if date exists and is a valid string
-            if (item[dateField] && typeof item[dateField] === 'string') {
-                try {
-                    const month = format(parseISO(item[dateField]), 'yyyy-MM');
-                    if (!months[month]) {
-                        months[month] = { sales: 0, expenses: 0 };
-                    }
-                    months[month][valueField] += (valueField === 'sales' ? (item.qty * item.price) : item.amount);
-                } catch (e) {
-                    console.warn(`Could not parse date for item ${item.id}:`, item[dateField]);
-                }
-            }
-        });
-    };
-    
-    processData(salesData, 'sales', 'date');
-    processData(expensesData, 'expenses', 'date');
+    salesData.forEach(sale => {
+      if (sale.date && typeof sale.date === 'string') {
+        try {
+          const month = format(parseISO(sale.date), 'yyyy-MM');
+          if (!months[month]) {
+            months[month] = 0;
+          }
+          months[month] += (sale.qty * sale.price);
+        } catch (e) {
+          console.warn(`Could not parse date for sale ${sale.id}:`, sale.date);
+        }
+      }
+    });
 
     const sortedMonths = Object.keys(months).sort();
-    const labels = sortedMonths.map(month => format(parseISO(month), 'MMM yyyy'));
-    const salesValues = sortedMonths.map(month => months[month].sales);
-    const expensesValues = sortedMonths.map(month => months[month].expenses);
-
     return {
-      labels,
-      datasets: [
-        {
-          label: 'Total Sales',
-          data: salesValues,
-          borderColor: 'rgb(54, 162, 235)',
-          backgroundColor: 'rgba(54, 162, 235, 0.5)',
-          fill: true,
-        },
-        {
-          label: 'Total Expenses',
-          data: expensesValues,
-          borderColor: 'rgb(255, 99, 132)',
-          backgroundColor: 'rgba(255, 99, 132, 0.5)',
-          fill: true,
-        },
-      ],
+      labels: sortedMonths.map(month => format(parseISO(month), 'MMM yyyy')),
+      datasets: [{
+        label: 'Total Sales',
+        data: sortedMonths.map(month => months[month]),
+        borderColor: 'rgb(54, 162, 235)',
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+        fill: true,
+      }],
     };
-  }, [salesData, expensesData]);
+  }, [salesData]);
+
+  const monthlyExpensesChartData = useMemo(() => {
+    const months = {};
+    expensesData.forEach(expense => {
+      if (expense.date && typeof expense.date === 'string') {
+        try {
+          const month = format(parseISO(expense.date), 'yyyy-MM');
+          if (!months[month]) {
+            months[month] = 0;
+          }
+          months[month] += expense.amount;
+        } catch (e) {
+          console.warn(`Could not parse date for expense ${expense.id}:`, expense.date);
+        }
+      }
+    });
+
+    const sortedMonths = Object.keys(months).sort();
+    return {
+      labels: sortedMonths.map(month => format(parseISO(month), 'MMM yyyy')),
+      datasets: [{
+        label: 'Total Expenses',
+        data: sortedMonths.map(month => months[month]),
+        borderColor: 'rgb(255, 99, 132)',
+        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+        fill: true,
+      }],
+    };
+  }, [expensesData]);
 
   const expenseCategoryChartData = useMemo(() => {
     const categories = expensesData.reduce((acc, expense) => {
-        const category = expense.category || 'Uncategorized';
-        acc[category] = (acc[category] || 0) + expense.amount;
-        return acc;
+      const category = expense.category || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + expense.amount;
+      return acc;
     }, {});
     
     return {
       labels: Object.keys(categories),
       datasets: [{
         data: Object.values(categories),
-        backgroundColor: [
-          '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'
-        ],
+        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'],
       }],
     };
   }, [expensesData]);
@@ -114,9 +122,7 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
       labels: inventoryValues.map(item => item.name),
       datasets: [{
         data: inventoryValues.map(item => item.value),
-        backgroundColor: [
-          '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF'
-        ],
+        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF'],
       }],
     };
   }, [inventoryData]);
@@ -138,11 +144,19 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
         <KpiCard title="Total Expenses" value={kpiData.totalExpenses} />
         <KpiCard title="Net Profit" value={kpiData.netProfit} />
       </div>
-
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-xl font-semibold mb-4 text-gray-800">Sales vs Expenses Over Time</h3>
-        <div className="h-96">
-            <Line data={monthlyChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold mb-4 text-gray-800">Sales Over Time</h3>
+          <div className="h-96">
+              <Line data={monthlySalesChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold mb-4 text-gray-800">Expenses Over Time</h3>
+          <div className="h-96">
+              <Line data={monthlyExpensesChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+          </div>
         </div>
       </div>
 
