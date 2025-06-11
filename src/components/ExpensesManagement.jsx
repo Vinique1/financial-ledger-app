@@ -62,6 +62,14 @@ export default function ExpensesManagement() {
     });
   }, [expensesData, expensesSortColumn, expensesSortDirection]);
 
+  const tableHeaders = [
+    { key: 'date', label: 'Date', align: 'left' },
+    { key: 'item', label: 'Description', align: 'left' },
+    { key: 'category', label: 'Category', align: 'left' },
+    { key: 'amount', label: 'Amount', align: 'center' },
+    { key: 'actions', label: '', align: 'center' },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
@@ -92,8 +100,8 @@ export default function ExpensesManagement() {
         <table className="min-w-full bg-white">
           <thead>
             <tr>
-              {['Date', 'Item', 'Amount', 'Category', 'Actions'].map(header => (
-                <th key={header} className="p-3 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">{header}</th>
+              {tableHeaders.map(header => (
+                <th key={header.key} className={`p-3 text-${header.align} text-sm font-semibold text-gray-600 uppercase tracking-wider`}>{header.label}</th>
               ))}
             </tr>
           </thead>
@@ -102,8 +110,8 @@ export default function ExpensesManagement() {
               <tr key={expense.id} className="hover:bg-gray-50">
                 <td className="p-3 text-sm text-gray-800">{expense.date}</td>
                 <td className="p-3 text-sm text-gray-800">{expense.item}</td>
-                <td className="p-3 text-right text-sm text-gray-800">₦{expense.amount.toFixed(2)}</td>
                 <td className="p-3 text-sm text-gray-800">{expense.category}</td>
+                <td className="p-3 text-center text-sm text-gray-800">₦{expense.amount.toFixed(2)}</td>
                 <td className="p-3 text-center">
                   <DropdownMenu>
                     <ActionButton onClick={() => setEditingExpenseId(expense.id)} color="blue">Edit</ActionButton>
@@ -116,7 +124,7 @@ export default function ExpensesManagement() {
             ))}
             {sortedExpenses.length === 0 && (
               <tr>
-                <td colSpan="5" className="p-4 text-center text-gray-500">No expenses records found.</td>
+                <td colSpan={tableHeaders.length} className="p-4 text-center text-gray-500">No expenses records found.</td>
               </tr>
             )}
           </tbody>

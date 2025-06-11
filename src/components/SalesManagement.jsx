@@ -94,6 +94,17 @@ export default function SalesManagement() {
     });
   }, [salesData, salesSortColumn, salesSortDirection]);
 
+  const tableHeaders = [
+    { key: 'date', label: 'Date', align: 'left' },
+    { key: 'item', label: 'Item', align: 'left' },
+    { key: 'customer', label: 'Customer', align: 'left' },
+    { key: 'qty', label: 'Qty', align: 'center' },
+    { key: 'price', label: 'Price', align: 'center' },
+    { key: 'cost', label: 'Cost', align: 'center' },
+    { key: 'profit', label: 'Profit', align: 'center' },
+    { key: 'actions', label: '', align: 'center' },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
@@ -131,8 +142,8 @@ export default function SalesManagement() {
           <table className="min-w-full bg-white">
               <thead>
                   <tr>
-                      {['Date', 'Item', 'Qty', 'Price', 'Cost', 'Profit', 'Customer', 'Actions'].map(header => (
-                          <th key={header} className="p-3 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">{header}</th>
+                      {tableHeaders.map(header => (
+                          <th key={header.key} className={`p-3 text-${header.align} text-sm font-semibold text-gray-600 uppercase tracking-wider`}>{header.label}</th>
                       ))}
                   </tr>
               </thead>
@@ -145,11 +156,11 @@ export default function SalesManagement() {
                           <tr key={sale.id} className="hover:bg-gray-50">
                               <td className="p-3 text-sm text-gray-800">{sale.date}</td>
                               <td className="p-3 text-sm text-gray-800">{sale.item}</td>
-                              <td className="p-3 text-right text-sm text-gray-800">{sale.qty}</td>
-                              <td className="p-3 text-right text-sm text-gray-800">₦{sale.price.toFixed(2)}</td>
-                              <td className="p-3 text-right text-sm text-gray-800">₦{totalCost.toFixed(2)}</td>
-                              <td className="p-3 text-right text-sm text-gray-800">₦{profit.toFixed(2)}</td>
                               <td className="p-3 text-sm text-gray-800">{sale.customer}</td>
+                              <td className="p-3 text-center text-sm text-gray-800">{sale.qty}</td>
+                              <td className="p-3 text-center text-sm text-gray-800">₦{sale.price.toFixed(2)}</td>
+                              <td className="p-3 text-center text-sm text-gray-800">₦{totalCost.toFixed(2)}</td>
+                              <td className="p-3 text-center text-sm text-gray-800">₦{profit.toFixed(2)}</td>
                               <td className="p-3 text-center">
                                   <DropdownMenu>
                                       <ActionButton onClick={() => setEditingSaleId(sale.id)} color="blue">Edit</ActionButton>
@@ -163,7 +174,7 @@ export default function SalesManagement() {
                   })}
                   {sortedSales.length === 0 && (
                       <tr>
-                          <td colSpan="8" className="p-4 text-center text-gray-500">No sales records found.</td>
+                          <td colSpan={tableHeaders.length} className="p-4 text-center text-gray-500">No sales records found.</td>
                       </tr>
                   )}
               </tbody>

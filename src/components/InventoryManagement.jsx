@@ -61,6 +61,16 @@ export default function InventoryManagement() {
     });
   }, [inventoryData, inventorySortColumn, inventorySortDirection]);
 
+  const tableHeaders = [
+    { key: 'itemName', label: 'Item Name', align: 'left' },
+    { key: 'qtyIn', label: 'Qty In', align: 'center' },
+    { key: 'qtyOut', label: 'Qty Out', align: 'center' },
+    { key: 'currentStock', label: 'Current Stock', align: 'center' },
+    { key: 'costPrice', label: 'Cost Price', align: 'center' },
+    { key: 'salePrice', label: 'Sale Price', align: 'center' },
+    { key: 'actions', label: '', align: 'center' },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
@@ -91,8 +101,8 @@ export default function InventoryManagement() {
         <table className="min-w-full bg-white">
           <thead>
             <tr>
-              {['Item Name', 'Qty In', 'Qty Out', 'Current Stock', 'Cost Price', 'Sale Price', 'Actions'].map(header => (
-                <th key={header} className="p-3 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">{header}</th>
+              {tableHeaders.map(header => (
+                <th key={header.key} className={`p-3 text-${header.align} text-sm font-semibold text-gray-600 uppercase tracking-wider`}>{header.label}</th>
               ))}
             </tr>
           </thead>
@@ -102,11 +112,11 @@ export default function InventoryManagement() {
               return (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="p-3 text-sm text-gray-800">{item.itemName}</td>
-                  <td className="p-3 text-right text-sm text-gray-800">{item.qtyIn}</td>
-                  <td className="p-3 text-right text-sm text-gray-800">{item.qtyOut}</td>
-                  <td className="p-3 text-right text-sm font-bold text-gray-800">{currentStock}</td>
-                  <td className="p-3 text-right text-sm text-gray-800">₦{item.costPrice.toFixed(2)}</td>
-                  <td className="p-3 text-right text-sm text-gray-800">₦{item.salePrice.toFixed(2)}</td>
+                  <td className="p-3 text-center text-sm text-gray-800">{item.qtyIn}</td>
+                  <td className="p-3 text-center text-sm text-gray-800">{item.qtyOut}</td>
+                  <td className="p-3 text-center text-sm font-bold text-gray-800">{currentStock}</td>
+                  <td className="p-3 text-center text-sm text-gray-800">₦{item.costPrice.toFixed(2)}</td>
+                  <td className="p-3 text-center text-sm text-gray-800">₦{item.salePrice.toFixed(2)}</td>
                   <td className="p-3 text-center">
                     <DropdownMenu>
                       <ActionButton onClick={() => setEditingInventoryId(item.id)} color="blue">Edit</ActionButton>
@@ -120,7 +130,7 @@ export default function InventoryManagement() {
             })}
             {sortedInventory.length === 0 && (
               <tr>
-                <td colSpan="7" className="p-4 text-center text-gray-500">No inventory records found.</td>
+                <td colSpan={tableHeaders.length} className="p-4 text-center text-gray-500">No inventory records found.</td>
               </tr>
             )}
           </tbody>
