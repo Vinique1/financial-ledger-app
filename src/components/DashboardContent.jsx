@@ -1,7 +1,7 @@
 // src/components/DashboardContent.jsx
 import React, { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
-import { Line, Doughnut } from 'react-chartjs-2';
+import { Line, Doughnut, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,6 +9,7 @@ import {
   PointElement,
   LineElement,
   ArcElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
@@ -21,6 +22,7 @@ ChartJS.register(
   PointElement,
   LineElement,
   ArcElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
@@ -35,8 +37,13 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
     const totalExpenses = expensesData.reduce((acc, expense) => acc + expense.amount, 0);
     const grossProfit = totalSales - totalCost;
     const netProfit = grossProfit - totalExpenses;
-    return { totalSales, grossProfit, totalExpenses, netProfit };
-  }, [salesData, expensesData]);
+    const totalInventoryValue = inventoryData.reduce((acc, item) => {
+        const stock = item.qtyIn - item.qtyOut;
+        return acc + (stock * item.costPrice);
+    }, 0);
+
+    return { totalSales, grossProfit, totalExpenses, netProfit, totalInventoryValue };
+  }, [salesData, expensesData, inventoryData]);
 
   const monthlySalesChartData = useMemo(() => {
     const months = {};
@@ -56,7 +63,7 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
 
     const sortedMonths = Object.keys(months).sort();
     return {
-      labels: sortedMonths.map(month => format(parseISO(month), 'MMM yyyy')),
+      labels: sortedMonths.map(month => format(parseISO(month), 'MMM yy')),
       datasets: [{
         label: 'Total Sales',
         data: sortedMonths.map(month => months[month]),
@@ -85,7 +92,7 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
 
     const sortedMonths = Object.keys(months).sort();
     return {
-      labels: sortedMonths.map(month => format(parseISO(month), 'MMM yyyy')),
+      labels: sortedMonths.map(month => format(parseISO(month), 'MMM yy')),
       datasets: [{
         label: 'Total Expenses',
         data: sortedMonths.map(month => months[month]),
@@ -112,37 +119,92 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
     };
   }, [expensesData]);
 
-  const inventoryValueChartData = useMemo(() => {
-    const inventoryValues = inventoryData.map(item => ({
-      name: item.itemName,
-      value: (item.qtyIn - item.qtyOut) * item.costPrice,
-    }));
+  const top10InventoryChartData = useMemo(() => {
+    const inventoryValues = inventoryData
+      .map(item => ({
+        name: item.itemName,
+        value: (item.qtyIn - item.qtyOut) * item.costPrice,
+      }))
+      .sort((a, b) => b.value - a.value) // Sort descending
+      .slice(0, 10);
 
     return {
       labels: inventoryValues.map(item => item.name),
       datasets: [{
+        label: 'Inventory Value',
         data: inventoryValues.map(item => item.value),
-        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF'],
+        backgroundColor: '#36A2EB',
       }],
     };
   }, [inventoryData]);
 
-  const KpiCard = ({ title, value, isCurrency = true }) => (
-    <div className="bg-white p-6 rounded-lg shadow-md text-center">
-      <h3 className="text-lg font-semibold text-gray-500">{title}</h3>
-      <p className="text-3xl font-bold text-gray-800 mt-2">
-        {isCurrency ? `₦${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
-      </p>
-    </div>
-  );
+  const bottom10InventoryChartData = useMemo(() => {
+    const inventoryValues = inventoryData
+      .map(item => ({
+        name: item.itemName,
+        value: (item.qtyIn - item.qtyOut) * item.costPrice,
+      }))
+      .sort((a, b) => a.value - b.value) // Sort ascending
+      .slice(0, 10);
+
+    return {
+      labels: inventoryValues.map(item => item.name),
+      datasets: [{
+        label: 'Inventory Value',
+        data: inventoryValues.map(item => item.value),
+        backgroundColor: '#FF6384',
+      }],
+    };
+  }, [inventoryData]);
+
+
+  const KpiCard = ({ title, value, accentColor, isCurrency = true }) => {
+    const valueColor = title === 'Net Profit/Loss' 
+      ? (value >= 0 ? 'text-green-600' : 'text-red-600') 
+      : 'text-gray-900';
+  
+    return (
+      <div className="bg-white rounded-lg shadow-md flex overflow-hidden">
+        <div className={`w-1.5 ${accentColor}`}></div>
+        <div className="p-4 flex-1">
+          <h3 className="text-sm font-medium text-gray-500">{title}</h3>
+          <p className={`text-2xl font-bold mt-1 ${valueColor}`}>
+            {isCurrency ? `₦${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
+          </p>
+        </div>
+      </div>
+    );
+  };
+  
+  const barChartOptions = {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: { display: false },
+    },
+    scales: {
+        x: {
+            beginAtZero: true,
+            title: { display: true, text: 'Value (₦)' },
+        },
+    },
+  };
+
+  const kpiCards = [
+    { title: "Total Sales", value: kpiData.totalSales, color: "bg-blue-500" },
+    { title: "Gross Profit", value: kpiData.grossProfit, color: "bg-purple-500" },
+    { title: "Total Expenses", value: kpiData.totalExpenses, color: "bg-red-500" },
+    { title: "Net Profit/Loss", value: kpiData.netProfit, color: "bg-green-500" },
+    { title: "Total Inventory Value", value: kpiData.totalInventoryValue, color: "bg-yellow-500" },
+  ];
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KpiCard title="Total Sales" value={kpiData.totalSales} />
-        <KpiCard title="Gross Profit" value={kpiData.grossProfit} />
-        <KpiCard title="Total Expenses" value={kpiData.totalExpenses} />
-        <KpiCard title="Net Profit" value={kpiData.netProfit} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        {kpiCards.map(card => (
+          <KpiCard key={card.title} title={card.title} value={card.value} accentColor={card.color} />
+        ))}
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -165,19 +227,26 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
             <h3 className="text-xl font-semibold mb-4 text-gray-800">Expense Breakdown</h3>
             {expenseCategoryChartData.labels.length > 0 ? (
                 <div className="relative h-80 w-80">
-                    <Doughnut data={expenseCategoryChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }} />
+                    <Doughnut data={expenseCategoryChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
                 </div>
             ) : <p className="text-gray-500 text-center py-10">No expense data to categorize.</p>}
         </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
-            <h3 className="text-xl font-semibold mb-4 text-gray-800">Inventory Value Distribution</h3>
-            {inventoryValueChartData.labels.length > 0 ? (
-                <div className="relative h-80 w-80">
-                    <Doughnut data={inventoryValueChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }} />
+        <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-xl font-semibold mb-4 text-gray-800">Top 10 Most Valuable Items</h3>
+            {top10InventoryChartData.labels.length > 0 ? (
+                <div className="relative h-96">
+                    <Bar data={top10InventoryChartData} options={barChartOptions} />
                 </div>
             ) : <p className="text-gray-500 text-center py-10">No inventory with value to display.</p>}
         </div>
+      </div>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-xl font-semibold mb-4 text-gray-800">Bottom 10 Least Valuable Items</h3>
+        {bottom10InventoryChartData.labels.length > 0 ? (
+            <div className="relative h-96">
+                <Bar data={bottom10InventoryChartData} options={barChartOptions} />
+            </div>
+        ) : <p className="text-gray-500 text-center py-10">No inventory with value to display.</p>}
       </div>
     </div>
   );

@@ -21,7 +21,6 @@ export default function InventoryManagement() {
     itemName: '',
     qtyIn: '',
     costPrice: '',
-    salePrice: '',
   };
   
   const validateInventoryForm = (formData) => {
@@ -67,7 +66,7 @@ export default function InventoryManagement() {
     { key: 'qtyOut', label: 'Qty Out', align: 'center' },
     { key: 'currentStock', label: 'Current Stock', align: 'center' },
     { key: 'costPrice', label: 'Cost Price', align: 'center' },
-    { key: 'salePrice', label: 'Sale Price', align: 'center' },
+    { key: 'stockValue', label: 'Stock Value', align: 'center' },
     { key: 'actions', label: '', align: 'center' },
   ];
 
@@ -79,7 +78,6 @@ export default function InventoryManagement() {
           <FormInput id="itemName" label="Item Name" value={formData.itemName} onChange={handleChange} error={errors.itemName} disabled={!!editingInventoryId} />
           <FormInput id="qtyIn" label="Quantity In" type="number" value={formData.qtyIn} onChange={handleChange} error={errors.qtyIn} />
           <FormInput id="costPrice" label="Cost Price" type="number" value={formData.costPrice} onChange={handleChange} error={errors.costPrice} />
-          <FormInput id="salePrice" label="Sale Price" type="number" value={formData.salePrice} onChange={handleChange} error={errors.salePrice} />
           <div className="md:col-span-2 flex justify-end space-x-2">
             <ActionButton type="submit" color="blue" disabled={isSavingInventory}>{isSavingInventory ? 'Saving...' : 'Save Item'}</ActionButton>
             <ActionButton type="button" color="gray" onClick={() => { setEditingInventoryId(null); resetForm(); }}>Cancel</ActionButton>
@@ -109,6 +107,7 @@ export default function InventoryManagement() {
           <tbody className="divide-y divide-gray-200">
             {sortedInventory.map((item) => {
               const currentStock = item.qtyIn - item.qtyOut;
+              const stockValue = item.qtyIn * item.costPrice;
               return (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="p-3 text-sm text-gray-800">{item.itemName}</td>
@@ -116,7 +115,7 @@ export default function InventoryManagement() {
                   <td className="p-3 text-center text-sm text-gray-800">{item.qtyOut}</td>
                   <td className="p-3 text-center text-sm font-bold text-gray-800">{currentStock}</td>
                   <td className="p-3 text-center text-sm text-gray-800">₦{item.costPrice.toFixed(2)}</td>
-                  <td className="p-3 text-center text-sm text-gray-800">₦{item.salePrice.toFixed(2)}</td>
+                  <td className="p-3 text-center text-sm text-gray-800">₦{stockValue.toFixed(2)}</td>
                   <td className="p-3 text-center">
                     <DropdownMenu>
                       <ActionButton onClick={() => setEditingInventoryId(item.id)} color="blue">Edit</ActionButton>
