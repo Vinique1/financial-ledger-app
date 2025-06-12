@@ -50,15 +50,19 @@ export default function InventoryManagement() {
       });
   };
 
-  const sortedInventory = useMemo(() => {
-    return [...inventoryData].sort((a, b) => {
-      const aVal = a[inventorySortColumn];
-      const bVal = b[inventorySortColumn];
-      const order = inventorySortDirection === 'asc' ? 1 : -1;
-      if (typeof aVal === 'string') return aVal.localeCompare(bVal) * order;
-      return (aVal - bVal) * order;
+  const sortedAndFilteredInventory = useMemo(() => {
+    return inventoryData
+      .filter(item => 
+        item.itemName && item.itemName.toLowerCase().includes(inventorySearchTerm.toLowerCase())
+      )
+      .sort((a, b) => {
+        const aVal = a[inventorySortColumn];
+        const bVal = b[inventorySortColumn];
+        const order = inventorySortDirection === 'asc' ? 1 : -1;
+        if (typeof aVal === 'string') return aVal.localeCompare(bVal) * order;
+        return (aVal - bVal) * order;
     });
-  }, [inventoryData, inventorySortColumn, inventorySortDirection]);
+  }, [inventoryData, inventorySearchTerm, inventorySortColumn, inventorySortDirection]);
 
   const tableHeaders = [
     { key: 'itemName', label: 'Item Name', align: 'left' },
@@ -105,7 +109,7 @@ export default function InventoryManagement() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {sortedInventory.map((item) => {
+            {sortedAndFilteredInventory.map((item) => {
               const currentStock = item.qtyIn - item.qtyOut;
               const stockValue = item.qtyIn * item.costPrice;
               return (
@@ -127,7 +131,7 @@ export default function InventoryManagement() {
                 </tr>
               );
             })}
-            {sortedInventory.length === 0 && (
+            {sortedAndFilteredInventory.length === 0 && (
               <tr>
                 <td colSpan={tableHeaders.length} className="p-4 text-center text-gray-500">No inventory records found.</td>
               </tr>

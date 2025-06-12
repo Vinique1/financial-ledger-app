@@ -5,7 +5,7 @@ import { useForm } from '../hooks/useForm';
 import FormInput from './FormInput';
 import ActionButton from './ActionButton';
 import DropdownMenu from './DropdownMenu';
-import SearchableSelect from './SearchableSelect'; // Import the new component
+import SearchableSelect from './SearchableSelect'; 
 import toast from 'react-hot-toast';
 
 export default function SalesManagement() {
@@ -26,7 +26,7 @@ export default function SalesManagement() {
     customer: '',
     qty: '',
     price: '',
-    cost: '', // Only cost is needed, profit and total are derived
+    cost: '',
   };
   
   const validateSaleForm = (formData) => {
@@ -52,7 +52,6 @@ export default function SalesManagement() {
     }
   }, [editingSaleId, salesData, setFormData, resetForm]);
   
-  // Auto-populate cost when item changes
   useEffect(() => {
       const selectedItem = rawInventoryData.find(inv => inv.itemName === formData.item);
       if (selectedItem) {
@@ -72,15 +71,20 @@ export default function SalesManagement() {
     label: inv.itemName
   })), [rawInventoryData]);
 
-  const sortedSales = useMemo(() => {
-    return [...salesData].sort((a, b) => {
+  const sortedAndFilteredSales = useMemo(() => {
+    return salesData
+      .filter(sale => 
+        (sale.item && sale.item.toLowerCase().includes(salesSearchTerm.toLowerCase())) ||
+        (sale.customer && sale.customer.toLowerCase().includes(salesSearchTerm.toLowerCase()))
+      )
+      .sort((a, b) => {
         const aVal = a[salesSortColumn];
         const bVal = b[salesSortColumn];
         const order = salesSortDirection === 'asc' ? 1 : -1;
         if (typeof aVal === 'string') return aVal.localeCompare(bVal) * order;
         return (aVal - bVal) * order;
     });
-  }, [salesData, salesSortColumn, salesSortDirection]);
+  }, [salesData, salesSearchTerm, salesSortColumn, salesSortDirection]);
 
   const tableHeaders = [
     { key: 'date', label: 'Date', align: 'left' },
@@ -140,7 +144,7 @@ export default function SalesManagement() {
                   </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                  {sortedSales.map(sale => {
+                  {sortedAndFilteredSales.map(sale => {
                       const totalCost = sale.qty * sale.cost;
                       const totalSale = sale.qty * sale.price;
                       const profit = totalSale - totalCost;
@@ -164,7 +168,7 @@ export default function SalesManagement() {
                           </tr>
                       );
                   })}
-                  {sortedSales.length === 0 && (
+                  {sortedAndFilteredSales.length === 0 && (
                       <tr>
                           <td colSpan={tableHeaders.length} className="p-4 text-center text-gray-500">No sales records found.</td>
                       </tr>

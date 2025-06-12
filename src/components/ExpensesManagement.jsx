@@ -17,7 +17,6 @@ export default function ExpensesManagement() {
     expensesSortDirection, setExpensesSortDirection,
   } = useData();
 
-  // Define categories locally to populate the dropdown
   const expenseCategories = ['Rent', 'Salaries', 'Utilities', 'Marketing', 'Supplies', 'Maintenance', 'Transportation', 'Miscellaneous'];
 
   const initialExpenseFormState = {
@@ -55,15 +54,20 @@ export default function ExpensesManagement() {
     });
   };
 
-  const sortedExpenses = useMemo(() => {
-    return [...expensesData].sort((a, b) => {
-      const aVal = a[expensesSortColumn];
-      const bVal = b[expensesSortColumn];
-      const order = expensesSortDirection === 'asc' ? 1 : -1;
-      if (typeof aVal === 'string') return aVal.localeCompare(bVal) * order;
-      return (aVal - bVal) * order;
-    });
-  }, [expensesData, expensesSortColumn, expensesSortDirection]);
+  const sortedAndFilteredExpenses = useMemo(() => {
+    return expensesData
+      .filter(expense => 
+        (expense.item && expense.item.toLowerCase().includes(expensesSearchTerm.toLowerCase())) ||
+        (expense.category && expense.category.toLowerCase().includes(expensesSearchTerm.toLowerCase()))
+      )
+      .sort((a, b) => {
+        const aVal = a[expensesSortColumn];
+        const bVal = b[expensesSortColumn];
+        const order = expensesSortDirection === 'asc' ? 1 : -1;
+        if (typeof aVal === 'string') return aVal.localeCompare(bVal) * order;
+        return (aVal - bVal) * order;
+      });
+  }, [expensesData, expensesSearchTerm, expensesSortColumn, expensesSortDirection]);
 
   const tableHeaders = [
     { key: 'date', label: 'Date', align: 'left' },
@@ -121,7 +125,7 @@ export default function ExpensesManagement() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {sortedExpenses.map((expense) => (
+            {sortedAndFilteredExpenses.map((expense) => (
               <tr key={expense.id} className="hover:bg-gray-50">
                 <td className="p-3 text-sm text-gray-800">{expense.date}</td>
                 <td className="p-3 text-sm text-gray-800">{expense.item}</td>
@@ -137,7 +141,7 @@ export default function ExpensesManagement() {
                 </td>
               </tr>
             ))}
-            {sortedExpenses.length === 0 && (
+            {sortedAndFilteredExpenses.length === 0 && (
               <tr>
                 <td colSpan={tableHeaders.length} className="p-4 text-center text-gray-500">No expenses records found.</td>
               </tr>

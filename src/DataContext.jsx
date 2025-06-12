@@ -1,5 +1,5 @@
 // src/DataContext.jsx
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from './firebase';
 import {
   collection,
@@ -122,14 +122,14 @@ export const DataProvider = ({ children }) => {
         return unsubscribe;
     };
 
-    const unsubscribeSales = setupSubscription('sales', setSalesData);
-    const unsubscribeExpenses = setupSubscription('expenses', setExpensesData);
-    const unsubscribeInventory = setupSubscription('inventory', setInventoryData);
+    const unsubSales = setupSubscription('sales', setSalesData);
+    const unsubExpenses = setupSubscription('expenses', setExpensesData);
+    const unsubInventory = setupSubscription('inventory', setInventoryData);
 
     return () => {
-      unsubscribeSales();
-      unsubscribeExpenses();
-      unsubscribeInventory();
+      unsubSales();
+      unsubExpenses();
+      unsubInventory();
     };
   }, [user, loadingAuth, getCollectionPath]);
 
@@ -346,7 +346,7 @@ export const DataProvider = ({ children }) => {
         const end = endDateFilter ? new Date(endDateFilter) : null;
         if (start && saleDate < start) return false;
         if (end && saleDate > end) return false;
-        return sale.item?.toLowerCase().includes(salesSearchTerm.toLowerCase());
+        return (sale.item && sale.item.toLowerCase().includes(salesSearchTerm.toLowerCase())) || (sale.customer && sale.customer.toLowerCase().includes(salesSearchTerm.toLowerCase()));
       })
   }, [salesData, startDateFilter, endDateFilter, salesSearchTerm]);
 
@@ -358,13 +358,13 @@ export const DataProvider = ({ children }) => {
             const end = endDateFilter ? new Date(endDateFilter) : null;
             if (start && expenseDate < start) return false;
             if (end && expenseDate > end) return false;
-            return expense.item?.toLowerCase().includes(expensesSearchTerm.toLowerCase());
+            return (expense.item && expense.item.toLowerCase().includes(expensesSearchTerm.toLowerCase())) || (expense.category && expense.category.toLowerCase().includes(expensesSearchTerm.toLowerCase()));
         })
   }, [expensesData, startDateFilter, endDateFilter, expensesSearchTerm]);
   
   const filteredInventory = useMemo(() => {
       return inventoryData.filter(item => 
-          item.itemName?.toLowerCase().includes(inventorySearchTerm.toLowerCase())
+          item.itemName && item.itemName.toLowerCase().includes(inventorySearchTerm.toLowerCase())
       );
   }, [inventoryData, inventorySearchTerm]);
 
@@ -373,7 +373,7 @@ export const DataProvider = ({ children }) => {
     salesData: filteredSales, 
     expensesData: filteredExpenses, 
     inventoryData: filteredInventory,
-    rawInventoryData: inventoryData, // For forms
+    rawInventoryData: inventoryData,
     dateFilterPreset, setDateFilterPreset,
     startDateFilter, setStartDateFilter,
     endDateFilter, setEndDateFilter,
