@@ -1,0 +1,47 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Function to check if the current user has a specific role by
+    // fetching their profile from the user_profiles collection.
+    function hasRole(role) {
+      return get(/databases/$(database)/documents/user_profiles/$(request.auth.uid)).data.role == role;
+    }
+
+    // Function to check if the current user has one of a list of roles.
+    function hasAnyRole(roles) {
+      return get(/databases/$(database)/documents/user_profiles/$(request.auth.uid)).data.role in roles;
+    }
+
+    // User Profiles: Only Admins can edit roles. Users can read their own profile.
+    match /user_profiles/{userId} {
+      allow read: if request.auth.uid == userId || hasRole('admin');
+      allow write: if hasRole('admin');
+    }
+
+    // The main data collections are nested under a user's UID.
+    // This provides a base layer of ownership security.
+    match /artifacts/{appId}/users/{userId}/{document=**} {
+      // General Read Access for all defined roles
+      allow read: if request.auth.uid == userId && hasAnyRole(['admin', 'sales_manager', 'expense_manager', 'inventory_manager', 'viewer']);
+
+      // Default write access for the owner of the data. Specific collections below have tighter restrictions.
+      allow write: if request.auth.uid == userId;
+    }
+
+    // Specific write rules for each collection based on role.
+
+    match /artifacts/{appId}/users/{userId}/sales/{saleId} {
+      allow write: if request.auth.uid == userId && hasAnyRole(['admin', 'sales_manager']);
+    }
+
+    match /artifacts/{appId}/users/{userId}/expenses/{expenseId} {
+      allow write: if request.auth.uid == userId && hasAnyRole(['admin', 'expense_manager']);
+    }
+
+    match /artifacts/{appId}/users/{userId}/inventory/{inventoryId} {
+       allow write: if request.auth.uid == userId && hasAnyRole(['admin', 'inventory_manager']);
+    }
+  }
+}

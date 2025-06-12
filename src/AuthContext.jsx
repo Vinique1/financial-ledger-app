@@ -1,40 +1,53 @@
 // src/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from './firebase'; // Assuming firebase.js is in the same directory
-import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth'; // Renamed signOut to avoid conflict
+import { auth, db } from './firebase'; // Import db from firebase
+import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore'; // Import Firestore functions
 
-// Create the AuthContext
 const AuthContext = createContext(null);
 
-// AuthProvider component to manage authentication state
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loadingAuth, setLoadingAuth] = useState(true); // State to indicate if authentication is still loading
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // Effect to listen for Firebase authentication state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoadingAuth(false); // Set loading to false once auth state is determined
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        // Instead of getting role from token, fetch it from Firestore.
+        const profileDocRef = doc(db, 'user_profiles', currentUser.uid);
+        try {
+          const profileDoc = await getDoc(profileDocRef);
+          if (profileDoc.exists()) {
+            const role = profileDoc.data().role || 'viewer';
+            setUser({ ...currentUser, role });
+          } else {
+            // Handle case where user exists in Auth but not in user_profiles
+            // This could happen if the profile doc was deleted manually.
+            console.warn(`Profile for user ${currentUser.uid} not found. Assigning default 'viewer' role.`);
+            setUser({ ...currentUser, role: 'viewer' });
+          }
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
+            // On error, default to a safe, non-privileged role
+            setUser({ ...currentUser, role: 'viewer' });
+        }
+      } else {
+        setUser(null);
+      }
+      setLoadingAuth(false);
     });
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 
-  // Function to handle user logout
   const logout = async () => {
     try {
       await firebaseSignOut(auth);
-      // setUser(null); // onAuthStateChanged listener will handle setting user to null
-      console.log("User logged out successfully!");
     } catch (error) {
       console.error("Error during logout:", error);
-      // You might want to add a toast/notification here for logout errors
     }
   };
 
-  // Provide the user, loading state, and logout function to children components
   return (
     <AuthContext.Provider value={{ user, loadingAuth, logout }}>
       {children}
@@ -42,7 +55,6 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// Custom hook to easily consume the AuthContext
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
