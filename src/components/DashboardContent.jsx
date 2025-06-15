@@ -32,14 +32,14 @@ ChartJS.register(
 export default function DashboardContent({ salesData, expensesData, inventoryData, startDateFilter, endDateFilter }) {
 
   const kpiData = useMemo(() => {
-    const totalSales = salesData.reduce((acc, sale) => acc + (sale.qty * sale.price), 0);
-    const totalCost = salesData.reduce((acc, sale) => acc + (sale.qty * sale.cost), 0);
-    const totalExpenses = expensesData.reduce((acc, expense) => acc + expense.amount, 0);
+    const totalSales = salesData.reduce((acc, sale) => acc + ((sale.qty || 0) * (sale.price || 0)), 0);
+    const totalCost = salesData.reduce((acc, sale) => acc + ((sale.qty || 0) * (sale.cost || 0)), 0);
+    const totalExpenses = expensesData.reduce((acc, expense) => acc + (expense.amount || 0), 0);
     const grossProfit = totalSales - totalCost;
     const netProfit = grossProfit - totalExpenses;
     const totalInventoryValue = inventoryData.reduce((acc, item) => {
-        const stock = item.qtyIn - item.qtyOut;
-        return acc + (stock * item.costPrice);
+        const stock = (item.qtyIn || 0) - (item.qtyOut || 0);
+        return acc + (stock * (item.costPrice || 0));
     }, 0);
 
     return { totalSales, grossProfit, totalExpenses, netProfit, totalInventoryValue };
@@ -83,7 +83,7 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
                         key = format(date, 'yyyy-MM');
                     }
                     if (!aggregation[key]) aggregation[key] = 0;
-                    aggregation[key] += valueField === 'sales' ? (item.qty * item.price) : item.amount;
+                    aggregation[key] += valueField === 'sales' ? ((item.qty || 0) * (item.price || 0)) : (item.amount || 0);
                 } catch (e) {
                     console.warn(`Could not parse date for item ${item.id}:`, item[dateField]);
                 }
@@ -119,13 +119,13 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
             datasets: [{ label: 'Total Expenses', data: expensesValues, borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.5)', fill: true }],
         }
     };
-}, [salesData, expensesData, startDateFilter, endDateFilter]);
+  }, [salesData, expensesData, startDateFilter, endDateFilter]);
 
 
   const expenseCategoryChartData = useMemo(() => {
     const categories = expensesData.reduce((acc, expense) => {
       const category = expense.category || 'Uncategorized';
-      acc[category] = (acc[category] || 0) + expense.amount;
+      acc[category] = (acc[category] || 0) + (expense.amount || 0);
       return acc;
     }, {});
     
@@ -138,43 +138,47 @@ export default function DashboardContent({ salesData, expensesData, inventoryDat
     };
   }, [expensesData]);
 
+  // --- OPTIMIZATION APPLIED HERE ---
+  // 1. Calculate the value of all inventory items just once.
+  const inventoryValues = useMemo(() =>
+    inventoryData.map(item => ({
+      name: item.itemName,
+      value: ((item.qtyIn || 0) - (item.qtyOut || 0)) * (item.costPrice || 0),
+    })),
+  [inventoryData]);
+
+  // 2. Use the pre-calculated values to get the top 10.
   const top10InventoryChartData = useMemo(() => {
-    const inventoryValues = inventoryData
-      .map(item => ({
-        name: item.itemName,
-        value: (item.qtyIn - item.qtyOut) * item.costPrice,
-      }))
+    const top10 = [...inventoryValues]
       .sort((a, b) => b.value - a.value) // Sort descending
       .slice(0, 10);
 
     return {
-      labels: inventoryValues.map(item => item.name),
+      labels: top10.map(item => item.name),
       datasets: [{
         label: 'Inventory Value',
-        data: inventoryValues.map(item => item.value),
+        data: top10.map(item => item.value),
         backgroundColor: '#36A2EB',
       }],
     };
-  }, [inventoryData]);
+  }, [inventoryValues]); // Depend on the pre-calculated `inventoryValues`
 
+  // 3. Use the same pre-calculated values to get the bottom 10.
   const bottom10InventoryChartData = useMemo(() => {
-    const inventoryValues = inventoryData
-      .map(item => ({
-        name: item.itemName,
-        value: (item.qtyIn - item.qtyOut) * item.costPrice,
-      }))
+    const bottom10 = [...inventoryValues]
       .sort((a, b) => a.value - b.value) // Sort ascending
       .slice(0, 10);
 
     return {
-      labels: inventoryValues.map(item => item.name),
+      labels: bottom10.map(item => item.name),
       datasets: [{
         label: 'Inventory Value',
-        data: inventoryValues.map(item => item.value),
+        data: bottom10.map(item => item.value),
         backgroundColor: '#FF6384',
       }],
     };
-  }, [inventoryData]);
+  }, [inventoryValues]); // Depend on the pre-calculated `inventoryValues`
+  // --- END OF OPTIMIZATION ---
 
 
   const KpiCard = ({ title, value, accentColor, isCurrency = true }) => {

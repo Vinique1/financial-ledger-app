@@ -51,11 +51,25 @@ export const DataProvider = ({ children }) => {
   const [expensesSortDirection, setExpensesSortDirection] = useState('desc');
   const [inventorySortColumn, setInventorySortColumn] = useState('itemName');
   const [inventorySortDirection, setInventorySortDirection] = useState('asc');
-  const [showExportDropdown, setShowExportDropdown] = useState(false); // Add this missing state
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
 
   const getCollectionPath = useCallback((collectionName) => {
     if (!user) return null;
-    return `artifacts/${import.meta.env.VITE_FIREBASE_APP_ID || 'financial-ledger-5cc34'}/users/${user.uid}/${collectionName}`;
+    
+    // --- FIX APPLIED HERE ---
+    const appId = import.meta.env.VITE_FIREBASE_APP_ID;
+
+    // Fail loudly if the environment variable is missing
+    if (!appId) {
+        // Log an error to the console for developers
+        console.error("CRITICAL: VITE_FIREBASE_APP_ID is not defined in the environment variables. The application cannot connect to the database.");
+        // Show a user-friendly error message
+        toast.error("Configuration Error: App ID is missing.");
+        return null;
+    }
+    // --- END OF FIX ---
+    
+    return `artifacts/${appId}/users/${user.uid}/${collectionName}`;
   }, [user]);
 
   useEffect(() => {
@@ -95,7 +109,7 @@ export const DataProvider = ({ children }) => {
 
     const setupSubscription = (collectionName, orderByField, setData) => {
         const path = getCollectionPath(collectionName);
-        if (!path) return () => {};
+        if (!path) return () => {}; // Stop if path is null
         const q = query(collection(db, path), orderBy(orderByField, 'desc'));
         return onSnapshot(q, (snapshot) => {
             setData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -106,9 +120,14 @@ export const DataProvider = ({ children }) => {
     const unsubExpenses = setupSubscription('expenses', 'date', setExpensesData);
     const unsubInventory = setupSubscription('inventory', 'itemName', setInventoryData);
     
-    const unsubRawInventory = onSnapshot(query(collection(db, getCollectionPath('inventory')), orderBy('itemName')), (snapshot) => {
-        setRawInventoryData(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})))
-    });
+    const inventoryPath = getCollectionPath('inventory');
+    let unsubRawInventory = () => {};
+    if (inventoryPath) {
+        unsubRawInventory = onSnapshot(query(collection(db, inventoryPath), orderBy('itemName')), (snapshot) => {
+            setRawInventoryData(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})))
+        });
+    }
+
 
     return () => {
       unsubSales();
@@ -121,15 +140,17 @@ export const DataProvider = ({ children }) => {
   // Data modification functions are now correctly defined here
   const handleAddOrUpdateSale = async (formData) => {
     if (!user) return toast.error("Authentication required.");
+    const path = getCollectionPath('sales');
+    if (!path) return; // Stop if path is invalid
     setIsSavingSale(true);
     try {
       const saleToSave = { ...formData, userId: user.uid, updatedAt: serverTimestamp() };
       if (editingSaleId) {
-        await updateDoc(doc(db, getCollectionPath('sales'), editingSaleId), saleToSave);
+        await updateDoc(doc(db, path, editingSaleId), saleToSave);
         toast.success('Sale updated successfully!');
       } else {
         saleToSave.createdAt = serverTimestamp();
-        await addDoc(collection(db, getCollectionPath('sales')), saleToSave);
+        await addDoc(collection(db, path), saleToSave);
         toast.success('Sale added successfully!');
       }
       setEditingSaleId(null);
@@ -142,15 +163,17 @@ export const DataProvider = ({ children }) => {
 
   const handleAddOrUpdateExpense = async (formData) => {
     if (!user) return toast.error("Authentication required.");
+    const path = getCollectionPath('expenses');
+    if (!path) return;
     setIsSavingExpense(true);
     try {
       const expenseToSave = { ...formData, userId: user.uid, updatedAt: serverTimestamp() };
       if (editingExpenseId) {
-        await updateDoc(doc(db, getCollectionPath('expenses'), editingExpenseId), expenseToSave);
+        await updateDoc(doc(db, path, editingExpenseId), expenseToSave);
         toast.success('Expense updated successfully!');
       } else {
         expenseToSave.createdAt = serverTimestamp();
-        await addDoc(collection(db, getCollectionPath('expenses')), expenseToSave);
+        await addDoc(collection(db, path), expenseToSave);
         toast.success('Expense added successfully!');
       }
       setEditingExpenseId(null);
@@ -163,16 +186,18 @@ export const DataProvider = ({ children }) => {
 
   const handleAddOrUpdateInventory = async (formData) => {
     if (!user) return toast.error("Authentication required.");
+    const path = getCollectionPath('inventory');
+    if (!path) return;
     setIsSavingInventory(true);
     try {
       const inventoryToSave = { ...formData, userId: user.uid, updatedAt: serverTimestamp() };
       if (editingInventoryId) {
-        await updateDoc(doc(db, getCollectionPath('inventory'), editingInventoryId), inventoryToSave);
+        await updateDoc(doc(db, path, editingInventoryId), inventoryToSave);
         toast.success('Inventory updated successfully!');
       } else {
         inventoryToSave.createdAt = serverTimestamp();
         inventoryToSave.qtyOut = 0;
-        await addDoc(collection(db, getCollectionPath('inventory')), inventoryToSave);
+        await addDoc(collection(db, path), inventoryToSave);
         toast.success('Inventory added successfully!');
       }
       setEditingInventoryId(null);
@@ -196,9 +221,11 @@ export const DataProvider = ({ children }) => {
   const handleConfirmDelete = async () => {
     if (!user || !itemToDelete) return;
     const { id, type } = itemToDelete;
+    const path = getCollectionPath(`${type}s`);
+    if (!path) return;
     setIsDeleting(true);
     try {
-      await deleteDoc(doc(db, getCollectionPath(`${type}s`), id));
+      await deleteDoc(doc(db, path, id));
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully!`);
     } catch (error) {
       toast.error(`Failed to delete ${type}.`);
