@@ -1,12 +1,12 @@
 // src/components/SalesManagement.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useData } from '../DataContext';
 import { useForm } from '../hooks/useForm';
 import FormInput from './FormInput';
 import ActionButton from './ActionButton';
 import DropdownMenu from './DropdownMenu';
-import SearchableSelect from './SearchableSelect'; 
-import toast from 'react-hot-toast';
+import SearchableSelect from './SearchableSelect';
+import { parseISO, startOfDay, endOfDay } from 'date-fns';
 
 export default function SalesManagement() {
   const {
@@ -18,18 +18,11 @@ export default function SalesManagement() {
     salesSearchTerm, setSalesSearchTerm,
     salesSortColumn, setSalesSortColumn,
     salesSortDirection, setSalesSortDirection,
+    startDateFilter, endDateFilter,
   } = useData();
 
-  const initialSaleFormState = {
-    date: new Date().toISOString().slice(0, 10),
-    item: '',
-    customer: '',
-    qty: '',
-    price: '',
-    cost: '',
-  };
-  
-  const validateSaleForm = (formData) => {
+  const initialSaleFormState = { date: new Date().toISOString().slice(0, 10), item: '', customer: '', qty: '', price: '', cost: '' };
+  const { formData, setFormData, errors, handleChange, handleSubmit, resetForm } = useForm(initialSaleFormState, (formData) => {
       const errors = {};
       if (!formData.date) errors.date = 'Sale Date is required.';
       if (!formData.item) errors.item = 'Item is required.';
@@ -37,16 +30,12 @@ export default function SalesManagement() {
       if (!formData.qty || parseFloat(formData.qty) <= 0) errors.qty = 'Quantity must be a positive number.';
       if (!formData.price || parseFloat(formData.price) <= 0) errors.price = 'Price must be a positive number.';
       return errors;
-  };
-
-  const { formData, setFormData, errors, handleChange, handleSubmit, resetForm } = useForm(initialSaleFormState, validateSaleForm);
+  });
 
   useEffect(() => {
     if (editingSaleId) {
       const saleToEdit = salesData.find(s => s.id === editingSaleId);
-      if (saleToEdit) {
-        setFormData(saleToEdit);
-      }
+      if (saleToEdit) setFormData(saleToEdit);
     } else {
       resetForm();
     }
@@ -66,17 +55,20 @@ export default function SalesManagement() {
     });
   };
 
-  const inventoryOptions = useMemo(() => rawInventoryData.map(inv => ({
-    value: inv.itemName,
-    label: inv.itemName
-  })), [rawInventoryData]);
+  const inventoryOptions = useMemo(() => rawInventoryData.map(inv => ({ value: inv.itemName, label: inv.itemName })), [rawInventoryData]);
 
   const sortedAndFilteredSales = useMemo(() => {
     return salesData
-      .filter(sale => 
-        (sale.item && sale.item.toLowerCase().includes(salesSearchTerm.toLowerCase())) ||
-        (sale.customer && sale.customer.toLowerCase().includes(salesSearchTerm.toLowerCase()))
-      )
+      .filter(sale => {
+        const saleDate = parseISO(sale.date);
+        const start = startDateFilter ? startOfDay(parseISO(startDateFilter)) : null;
+        const end = endDateFilter ? endOfDay(parseISO(endDateFilter)) : null;
+        if (start && saleDate < start) return false;
+        if (end && saleDate > end) return false;
+
+        return (sale.item && sale.item.toLowerCase().includes(salesSearchTerm.toLowerCase())) ||
+               (sale.customer && sale.customer.toLowerCase().includes(salesSearchTerm.toLowerCase()));
+      })
       .sort((a, b) => {
         const aVal = a[salesSortColumn];
         const bVal = b[salesSortColumn];
@@ -84,18 +76,9 @@ export default function SalesManagement() {
         if (typeof aVal === 'string') return aVal.localeCompare(bVal) * order;
         return (aVal - bVal) * order;
     });
-  }, [salesData, salesSearchTerm, salesSortColumn, salesSortDirection]);
-
-  const tableHeaders = [
-    { key: 'date', label: 'Date', align: 'left' },
-    { key: 'item', label: 'Item', align: 'left' },
-    { key: 'customer', label: 'Customer', align: 'left' },
-    { key: 'qty', label: 'Qty', align: 'center' },
-    { key: 'price', label: 'Price', align: 'center' },
-    { key: 'cost', label: 'Cost', align: 'center' },
-    { key: 'profit', label: 'Profit', align: 'center' },
-    { key: 'actions', label: '', align: 'center' },
-  ];
+  }, [salesData, salesSearchTerm, salesSortColumn, salesSortDirection, startDateFilter, endDateFilter]);
+  
+  const tableHeaders = [ { key: 'date', label: 'Date', align: 'left' }, { key: 'item', label: 'Item', align: 'left' }, { key: 'customer', label: 'Customer', align: 'left' }, { key: 'qty', label: 'Qty', align: 'center' }, { key: 'price', label: 'Price', align: 'center' }, { key: 'cost', label: 'Cost', align: 'center' }, { key: 'profit', label: 'Profit', align: 'center' }, { key: 'actions', label: '', align: 'center' } ];
 
   return (
     <div className="space-y-6">
@@ -105,12 +88,7 @@ export default function SalesManagement() {
             <FormInput id="date" label="Sale Date" type="date" value={formData.date} onChange={handleChange} error={errors.date} />
             <div>
               <label htmlFor="item" className="block text-sm font-medium text-gray-700">Item</label>
-              <SearchableSelect
-                options={inventoryOptions}
-                value={formData.item}
-                onChange={handleChange}
-                placeholder="Search for an item..."
-              />
+              <SearchableSelect options={inventoryOptions} value={formData.item} onChange={handleChange} placeholder="Search for an item..." />
                {errors.item && <p className="text-red-500 text-xs mt-1">{errors.item}</p>}
             </div>
             <FormInput id="customer" label="Customer" value={formData.customer} onChange={handleChange} error={errors.customer} />
@@ -123,7 +101,6 @@ export default function SalesManagement() {
             </div>
         </form>
       </div>
-
       <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
           <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-gray-700">Sales Records</h2>
@@ -135,46 +112,37 @@ export default function SalesManagement() {
                   className="px-3 py-2 border border-gray-300 rounded-md shadow-sm"
               />
           </div>
-          <table className="min-w-full bg-white">
-              <thead>
-                  <tr>
-                      {tableHeaders.map(header => (
-                          <th key={header.key} className={`p-3 text-${header.align} text-sm font-semibold text-gray-600 uppercase tracking-wider`}>{header.label}</th>
-                      ))}
-                  </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                  {sortedAndFilteredSales.map(sale => {
-                      const totalCost = sale.qty * sale.cost;
-                      const totalSale = sale.qty * sale.price;
-                      const profit = totalSale - totalCost;
-                      return (
-                          <tr key={sale.id} className="hover:bg-gray-50">
-                              <td className="p-3 text-sm text-gray-800">{sale.date}</td>
-                              <td className="p-3 text-sm text-gray-800">{sale.item}</td>
-                              <td className="p-3 text-sm text-gray-800">{sale.customer}</td>
-                              <td className="p-3 text-center text-sm text-gray-800">{sale.qty.toLocaleString()}</td>
-                              <td className="p-3 text-center text-sm text-gray-800">₦{sale.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                              <td className="p-3 text-center text-sm text-gray-800">₦{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                              <td className="p-3 text-center text-sm text-gray-800">₦{profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                              <td className="p-3 text-center">
-                                  <DropdownMenu>
-                                      <ActionButton onClick={() => setEditingSaleId(sale.id)} color="blue">Edit</ActionButton>
-                                      <ActionButton onClick={() => openConfirmModal(sale.id, 'sale')} color="red" disabled={isDeleting}>
-                                          {isDeleting ? 'Deleting...' : 'Delete'}
-                                      </ActionButton>
-                                  </DropdownMenu>
-                              </td>
-                          </tr>
-                      );
-                  })}
-                  {sortedAndFilteredSales.length === 0 && (
-                      <tr>
-                          <td colSpan={tableHeaders.length} className="p-4 text-center text-gray-500">No sales records found.</td>
-                      </tr>
-                  )}
-              </tbody>
-          </table>
+          <div className="overflow-y-auto max-h-[60vh] relative">
+            <table className="min-w-full bg-white">
+                <thead>
+                    <tr>{tableHeaders.map(header => (<th key={header.key} className={`sticky top-0 z-10 p-3 bg-gray-100 border-b text-${header.align} text-sm font-semibold text-gray-600 uppercase tracking-wider`}>{header.label}</th>))}</tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {sortedAndFilteredSales.map(sale => {
+                        const totalCost = (sale.qty || 0) * (sale.cost || 0);
+                        const totalSale = (sale.qty || 0) * (sale.price || 0);
+                        const profit = totalSale - totalCost;
+                        return (
+                            <tr key={sale.id} className="hover:bg-gray-50">
+                                <td className="p-3 text-sm text-gray-800">{sale.date}</td>
+                                <td className="p-3 text-sm text-gray-800">{sale.item}</td>
+                                <td className="p-3 text-sm text-gray-800">{sale.customer}</td>
+                                <td className="p-3 text-center text-sm text-gray-800">{(sale.qty || 0).toLocaleString()}</td>
+                                <td className="p-3 text-center text-sm text-gray-800">₦{(sale.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="p-3 text-center text-sm text-gray-800">₦{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="p-3 text-center text-sm text-gray-800">₦{profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="p-3 text-center">
+                                    <DropdownMenu>
+                                        <ActionButton onClick={() => setEditingSaleId(sale.id)} color="blue">Edit</ActionButton>
+                                        <ActionButton onClick={() => openConfirmModal(sale.id, 'sale')} color="red" disabled={isDeleting}>Delete</ActionButton>
+                                    </DropdownMenu>
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+          </div>
       </div>
     </div>
   );

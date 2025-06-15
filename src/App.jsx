@@ -4,55 +4,44 @@ import { useAuth } from './AuthContext';
 import { useData } from './DataContext';
 import Login from './Login';
 import ConfirmationModal from './ConfirmationModal';
-import toast from 'react-hot-toast';
+import { useDetectOutsideClick } from './hooks/useDetectOutsideClick';
 
 // Lazy load components
 const DashboardContent = React.lazy(() => import('./components/DashboardContent'));
 const SalesManagement = React.lazy(() => import('./components/SalesManagement'));
 const ExpensesManagement = React.lazy(() => import('./components/ExpensesManagement'));
 const InventoryManagement = React.lazy(() => import('./components/InventoryManagement'));
-const UserManagement = React.lazy(() => import('./components/UserManagement')); // Correctly reference UserManagement
+const UserManagement = React.lazy(() => import('./components/UserManagement'));
 
 export default function App() {
   const { user, loadingAuth, logout } = useAuth();
   const {
-    salesData, expensesData, inventoryData,
+    // We now get the filtered data directly from the context
+    filteredSales, 
+    filteredExpenses, 
+    inventoryData,
     dateFilterPreset, setDateFilterPreset,
     startDateFilter, setStartDateFilter,
     endDateFilter, setEndDateFilter,
     showConfirmModal, openConfirmModal, closeConfirmModal, handleConfirmDelete,
-    showExportDropdown, setShowExportDropdown, exportToCsv, exportToPdf,
+    exportToCsv, exportToPdf,
   } = useData();
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showExportDropdown, setShowExportDropdown, exportDropdownRef] = useDetectOutsideClick(false);
 
   if (loadingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-xl text-gray-600">
-        <svg className="animate-spin h-8 w-8 text-blue-500 mr-3" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        Loading authentication...
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
   if (!user) {
     return <Login />;
   }
-
+  
   const LoadingSpinner = () => (
-    <div className="flex justify-center items-center h-64 text-gray-500">
-      <svg className="animate-spin h-8 w-8 text-blue-500 mr-3" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-      Loading...
-    </div>
+    <div className="flex justify-center items-center h-64">Loading...</div>
   );
 
-  // Define available tabs based on user role
   const availableTabs = {
     admin: ['dashboard', 'sales', 'expenses', 'inventory', 'users'],
     sales_manager: ['dashboard', 'sales', 'expenses', 'inventory'],
@@ -79,7 +68,7 @@ export default function App() {
                       {tab === 'users' ? 'User Management' : tab}
                   </button>
               ))}
-              <div className="relative">
+              <div className="relative" ref={exportDropdownRef}>
                 <button
                   onClick={() => setShowExportDropdown(!showExportDropdown)}
                   className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-200"
@@ -89,14 +78,14 @@ export default function App() {
                 {showExportDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
                     <span className="block px-4 py-2 text-sm text-gray-700 font-semibold">Sales Data</span>
-                    <button onClick={() => exportToCsv('sales')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Sales CSV</button>
-                    <button onClick={() => exportToPdf('sales')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Sales PDF</button>
+                    <button onClick={() => { exportToCsv('sales'); setShowExportDropdown(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Sales CSV</button>
+                    <button onClick={() => { exportToPdf('sales'); setShowExportDropdown(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Sales PDF</button>
                     <span className="block px-4 py-2 text-sm text-gray-700 font-semibold mt-1">Expenses Data</span>
-                    <button onClick={() => exportToCsv('expenses')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Expenses CSV</button>
-                    <button onClick={() => exportToPdf('expenses')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Expenses PDF</button>
+                    <button onClick={() => { exportToCsv('expenses'); setShowExportDropdown(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Expenses CSV</button>
+                    <button onClick={() => { exportToPdf('expenses'); setShowExportDropdown(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Expenses PDF</button>
                     <span className="block px-4 py-2 text-sm text-gray-700 font-semibold mt-1">Inventory Data</span>
-                    <button onClick={() => exportToCsv('inventory')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Inventory CSV</button>
-                    <button onClick={() => exportToPdf('inventory')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Inventory PDF</button>
+                    <button onClick={() => { exportToCsv('inventory'); setShowExportDropdown(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Inventory CSV</button>
+                    <button onClick={() => { exportToPdf('inventory'); setShowExportDropdown(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Inventory PDF</button>
                   </div>
                 )}
               </div>
@@ -160,8 +149,8 @@ export default function App() {
         <Suspense fallback={<LoadingSpinner />}>
           {activeTab === 'dashboard' && (
             <DashboardContent
-              salesData={salesData}
-              expensesData={expensesData}
+              salesData={filteredSales}
+              expensesData={filteredExpenses}
               inventoryData={inventoryData}
               startDateFilter={startDateFilter}
               endDateFilter={endDateFilter}

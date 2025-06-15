@@ -17,37 +17,28 @@ export default function InventoryManagement() {
     inventorySortDirection, setInventorySortDirection,
   } = useData();
 
-  const initialInventoryFormState = {
-    itemName: '',
-    qtyIn: '',
-    costPrice: '',
-  };
-  
-  const validateInventoryForm = (formData) => {
+  const initialInventoryFormState = { itemName: '', qtyIn: '', costPrice: '' };
+  const { formData, setFormData, errors, handleChange, handleSubmit, resetForm } = useForm(initialInventoryFormState, (formData) => {
     const errors = {};
     if (!formData.itemName.trim()) errors.itemName = 'Item Name is required.';
     if (!formData.qtyIn || parseInt(formData.qtyIn, 10) < 0) errors.qtyIn = 'Quantity must be a non-negative number.';
     if (!formData.costPrice || parseFloat(formData.costPrice) < 0) errors.costPrice = 'Cost Price must be a non-negative number.';
     return errors;
-  };
-  
-  const { formData, setFormData, errors, handleChange, handleSubmit, resetForm } = useForm(initialInventoryFormState, validateInventoryForm);
+  });
 
   useEffect(() => {
     if (editingInventoryId) {
       const itemToEdit = inventoryData.find(i => i.id === editingInventoryId);
-      if (itemToEdit) {
-        setFormData(itemToEdit);
-      }
+      if (itemToEdit) setFormData(itemToEdit);
     } else {
       resetForm();
     }
   }, [editingInventoryId, inventoryData, setFormData, resetForm]);
-  
+
   const onFormSubmit = (data) => {
-      handleAddOrUpdateInventory(data).then(() => {
-          if(!editingInventoryId) resetForm();
-      });
+    handleAddOrUpdateInventory(data).then(() => {
+        if(!editingInventoryId) resetForm();
+    });
   };
 
   const sortedAndFilteredInventory = useMemo(() => {
@@ -88,7 +79,6 @@ export default function InventoryManagement() {
           </div>
         </form>
       </div>
-
       <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold text-gray-700">Inventory List</h2>
@@ -100,44 +90,41 @@ export default function InventoryManagement() {
             className="px-3 py-2 border border-gray-300 rounded-md shadow-sm"
           />
         </div>
-        <table className="min-w-full bg-white">
-          <thead>
-            <tr>
-              {tableHeaders.map(header => (
-                <th key={header.key} className={`p-3 text-${header.align} text-sm font-semibold text-gray-600 uppercase tracking-wider`}>{header.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {sortedAndFilteredInventory.map((item) => {
-              const currentStock = item.qtyIn - item.qtyOut;
-              const stockValue = item.qtyIn * item.costPrice;
-              return (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="p-3 text-sm text-gray-800">{item.itemName}</td>
-                  <td className="p-3 text-center text-sm text-gray-800">{item.qtyIn.toLocaleString()}</td>
-                  <td className="p-3 text-center text-sm text-gray-800">{item.qtyOut.toLocaleString()}</td>
-                  <td className="p-3 text-center text-sm font-bold text-gray-800">{currentStock.toLocaleString()}</td>
-                  <td className="p-3 text-center text-sm text-gray-800">₦{item.costPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="p-3 text-center text-sm text-gray-800">₦{stockValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="p-3 text-center">
-                    <DropdownMenu>
-                      <ActionButton onClick={() => setEditingInventoryId(item.id)} color="blue">Edit</ActionButton>
-                      <ActionButton onClick={() => openConfirmModal(item.id, 'inventory')} color="red" disabled={isDeleting}>
-                        {isDeleting ? 'Deleting...' : 'Delete'}
-                      </ActionButton>
-                    </DropdownMenu>
-                  </td>
+        <div className="overflow-y-auto max-h-[60vh] relative">
+            <table className="min-w-full bg-white">
+              <thead>
+                <tr>
+                  {tableHeaders.map(header => (
+                    <th key={header.key} className={`sticky top-0 z-10 p-3 bg-gray-100 border-b text-${header.align} text-sm font-semibold text-gray-600 uppercase tracking-wider`}>{header.label}</th>
+                  ))}
                 </tr>
-              );
-            })}
-            {sortedAndFilteredInventory.length === 0 && (
-              <tr>
-                <td colSpan={tableHeaders.length} className="p-4 text-center text-gray-500">No inventory records found.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {sortedAndFilteredInventory.map((item) => {
+                  const currentStock = (item.qtyIn || 0) - (item.qtyOut || 0);
+                  const stockValue = (item.qtyIn || 0) * (item.costPrice || 0);
+                  return (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="p-3 text-sm text-gray-800">{item.itemName}</td>
+                      <td className="p-3 text-center text-sm text-gray-800">{(item.qtyIn || 0).toLocaleString()}</td>
+                      <td className="p-3 text-center text-sm text-gray-800">{(item.qtyOut || 0).toLocaleString()}</td>
+                      <td className="p-3 text-center text-sm font-bold text-gray-800">{currentStock.toLocaleString()}</td>
+                      <td className="p-3 text-center text-sm text-gray-800">₦{(item.costPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="p-3 text-center text-sm text-gray-800">₦{stockValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="p-3 text-center">
+                        <DropdownMenu>
+                          <ActionButton onClick={() => setEditingInventoryId(item.id)} color="blue">Edit</ActionButton>
+                          <ActionButton onClick={() => openConfirmModal(item.id, 'inventory')} color="red" disabled={isDeleting}>
+                            {isDeleting ? 'Deleting...' : 'Delete'}
+                          </ActionButton>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+        </div>
       </div>
     </div>
   );
