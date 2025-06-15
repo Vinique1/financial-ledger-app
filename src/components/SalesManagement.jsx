@@ -6,7 +6,6 @@ import FormInput from './FormInput';
 import ActionButton from './ActionButton';
 import DropdownMenu from './DropdownMenu';
 import SearchableSelect from './SearchableSelect';
-import { parseISO, startOfDay, endOfDay } from 'date-fns';
 
 export default function SalesManagement() {
   const {
@@ -18,7 +17,6 @@ export default function SalesManagement() {
     salesSearchTerm, setSalesSearchTerm,
     salesSortColumn, setSalesSortColumn,
     salesSortDirection, setSalesSortDirection,
-    startDateFilter, endDateFilter,
   } = useData();
 
   const initialSaleFormState = { date: new Date().toISOString().slice(0, 10), item: '', customer: '', qty: '', price: '', cost: '' };
@@ -59,16 +57,10 @@ export default function SalesManagement() {
 
   const sortedAndFilteredSales = useMemo(() => {
     return salesData
-      .filter(sale => {
-        const saleDate = parseISO(sale.date);
-        const start = startDateFilter ? startOfDay(parseISO(startDateFilter)) : null;
-        const end = endDateFilter ? endOfDay(parseISO(endDateFilter)) : null;
-        if (start && saleDate < start) return false;
-        if (end && saleDate > end) return false;
-
-        return (sale.item && sale.item.toLowerCase().includes(salesSearchTerm.toLowerCase())) ||
-               (sale.customer && sale.customer.toLowerCase().includes(salesSearchTerm.toLowerCase()));
-      })
+      .filter(sale => 
+        (sale.item && sale.item.toLowerCase().includes(salesSearchTerm.toLowerCase())) ||
+        (sale.customer && sale.customer.toLowerCase().includes(salesSearchTerm.toLowerCase()))
+      )
       .sort((a, b) => {
         const aVal = a[salesSortColumn];
         const bVal = b[salesSortColumn];
@@ -76,7 +68,7 @@ export default function SalesManagement() {
         if (typeof aVal === 'string') return aVal.localeCompare(bVal) * order;
         return (aVal - bVal) * order;
     });
-  }, [salesData, salesSearchTerm, salesSortColumn, salesSortDirection, startDateFilter, endDateFilter]);
+  }, [salesData, salesSearchTerm, salesSortColumn, salesSortDirection]);
   
   const tableHeaders = [ { key: 'date', label: 'Date', align: 'left' }, { key: 'item', label: 'Item', align: 'left' }, { key: 'customer', label: 'Customer', align: 'left' }, { key: 'qty', label: 'Qty', align: 'center' }, { key: 'price', label: 'Price', align: 'center' }, { key: 'cost', label: 'Cost', align: 'center' }, { key: 'profit', label: 'Profit', align: 'center' }, { key: 'actions', label: '', align: 'center' } ];
 
@@ -88,7 +80,7 @@ export default function SalesManagement() {
             <FormInput id="date" label="Sale Date" type="date" value={formData.date} onChange={handleChange} error={errors.date} />
             <div>
               <label htmlFor="item" className="block text-sm font-medium text-gray-700">Item</label>
-              <SearchableSelect options={inventoryOptions} value={formData.item} onChange={handleChange} placeholder="Search for an item..." />
+              <SearchableSelect options={inventoryOptions} value={formData.item} onChange={(val) => handleChange({ target: { id: 'item', value: val }})} placeholder="Search for an item..." />
                {errors.item && <p className="text-red-500 text-xs mt-1">{errors.item}</p>}
             </div>
             <FormInput id="customer" label="Customer" value={formData.customer} onChange={handleChange} error={errors.customer} />

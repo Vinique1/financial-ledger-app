@@ -1,5 +1,5 @@
 // src/DataContext.jsx
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { db } from './firebase';
 import {
   collection,
@@ -11,6 +11,7 @@ import {
   doc,
   serverTimestamp,
   orderBy,
+  where, // Import 'where' for filtering
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
@@ -55,21 +56,20 @@ export const DataProvider = ({ children }) => {
 
   const getCollectionPath = useCallback((collectionName) => {
     if (!user) return null;
-    
     const appId = import.meta.env.VITE_FIREBASE_APP_ID;
-
     if (!appId) {
-        console.error("CRITICAL: VITE_FIREBASE_APP_ID is not defined in the environment variables. The application cannot connect to the database.");
+        console.error("CRITICAL: VITE_FIREBASE_APP_ID is not defined in the environment variables.");
         toast.error("Configuration Error: App ID is missing.");
         return null;
     }
-    
     return `artifacts/${appId}/users/${user.uid}/${collectionName}`;
   }, [user]);
 
   useEffect(() => {
     let start, end;
     const today = new Date();
+    if (dateFilterPreset === 'custom') return; 
+    
     switch (dateFilterPreset) {
       case 'today':
         start = end = startOfDay(today);
@@ -92,20 +92,38 @@ export const DataProvider = ({ children }) => {
         start = startOfMonth(today);
         end = endOfDay(today);
         break;
-      case 'custom':
-        return; 
     }
     setStartDateFilter(format(start, 'yyyy-MM-dd'));
     setEndDateFilter(format(end, 'yyyy-MM-dd'));
   }, [dateFilterPreset]);
 
+  // Main data fetching effect with server-side filtering
   useEffect(() => {
-    if (!user || loadingAuth) return;
+    if (!user || loadingAuth || !startDateFilter || !endDateFilter) return;
 
     const setupSubscription = (collectionName, orderByField, setData) => {
         const path = getCollectionPath(collectionName);
-        if (!path) return () => {}; // Stop if path is null
-        const q = query(collection(db, path), orderBy(orderByField, 'desc'));
+        if (!path) return () => {};
+
+        const q = query(
+          collection(db, path), 
+          where("date", ">=", startDateFilter),
+          where("date", "<=", endDateFilter),
+          orderBy(orderByField, 'desc')
+        );
+
+        return onSnapshot(q, (snapshot) => {
+            setData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        }, (error) => {
+            console.error(`Failed to load ${collectionName}:`, error);
+            toast.error(`Failed to load ${collectionName}. Check console for details.`);
+        });
+    };
+
+    const setupInventorySubscription = (collectionName, orderByField, setData) => {
+        const path = getCollectionPath(collectionName);
+        if (!path) return () => {};
+        const q = query(collection(db, path), orderBy(orderByField));
         return onSnapshot(q, (snapshot) => {
             setData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         }, (error) => toast.error(`Failed to load ${collectionName}.`));
@@ -113,33 +131,22 @@ export const DataProvider = ({ children }) => {
 
     const unsubSales = setupSubscription('sales', 'date', setSalesData);
     const unsubExpenses = setupSubscription('expenses', 'date', setExpensesData);
-    const unsubInventory = setupSubscription('inventory', 'itemName', setInventoryData);
+    const unsubInventory = setupInventorySubscription('inventory', 'itemName', setInventoryData);
+    const unsubRawInventory = setupInventorySubscription('inventory', 'itemName', setRawInventoryData);
     
-    const inventoryPath = getCollectionPath('inventory');
-    let unsubRawInventory = () => {};
-    if (inventoryPath) {
-        unsubRawInventory = onSnapshot(query(collection(db, inventoryPath), orderBy('itemName')), (snapshot) => {
-            setRawInventoryData(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})))
-        });
-    }
-
-    // --- FIX APPLIED HERE ---
-    // The cleanup function for the effect hook.
-    // This now correctly includes unsubRawInventory to prevent resource leaks.
     return () => {
       unsubSales();
       unsubExpenses();
       unsubInventory();
-      unsubRawInventory(); // This was the missing call
+      unsubRawInventory();
     };
-    // --- END OF FIX ---
-  }, [user, loadingAuth, getCollectionPath]);
+  }, [user, loadingAuth, getCollectionPath, startDateFilter, endDateFilter]);
 
-  // Data modification functions are now correctly defined here
-  const handleAddOrUpdateSale = async (formData) => {
+
+  const handleAddOrUpdateSale = async (formData, oldSale) => {
     if (!user) return toast.error("Authentication required.");
     const path = getCollectionPath('sales');
-    if (!path) return; // Stop if path is invalid
+    if (!path) return;
     setIsSavingSale(true);
     try {
       const saleToSave = { ...formData, userId: user.uid, updatedAt: serverTimestamp() };
@@ -232,24 +239,12 @@ export const DataProvider = ({ children }) => {
       setIsDeleting(false);
     }
   };
-
-  const filteredSales = useMemo(() => salesData.filter(s => {
-    if (!s.date || !startDateFilter || !endDateFilter) return true;
-    const saleDate = parseISO(s.date);
-    return saleDate >= startOfDay(parseISO(startDateFilter)) && saleDate <= endOfDay(parseISO(endDateFilter));
-  }), [salesData, startDateFilter, endDateFilter]);
-
-  const filteredExpenses = useMemo(() => expensesData.filter(e => {
-    if (!e.date || !startDateFilter || !endDateFilter) return true;
-    const expenseDate = parseISO(e.date);
-    return expenseDate >= startOfDay(parseISO(startDateFilter)) && expenseDate <= endOfDay(parseISO(endDateFilter));
-  }), [expensesData, startDateFilter, endDateFilter]);
-
+  
   const exportToCsv = (type) => {
     let data, headers;
     switch (type) {
-      case 'sales': data = filteredSales; headers = ['date', 'item', 'qty', 'price', 'cost', 'customer']; break;
-      case 'expenses': data = filteredExpenses; headers = ['date', 'item', 'amount', 'category']; break;
+      case 'sales': data = salesData; headers = ['date', 'item', 'qty', 'price', 'cost', 'customer']; break;
+      case 'expenses': data = expensesData; headers = ['date', 'item', 'amount', 'category']; break;
       case 'inventory': data = rawInventoryData.map(i => ({...i, currentStock: (i.qtyIn || 0) - (i.qtyOut || 0)})); headers = ['itemName', 'qtyIn', 'qtyOut', 'currentStock', 'costPrice']; break;
       default: toast.error("Invalid export type."); return;
     }
@@ -268,8 +263,8 @@ export const DataProvider = ({ children }) => {
   const exportToPdf = (type) => {
     let data, headers;
     switch (type) {
-        case 'sales': data = filteredSales; headers = ['date', 'item', 'qty', 'price', 'cost', 'customer']; break;
-        case 'expenses': data = filteredExpenses; headers = ['date', 'item', 'amount', 'category']; break;
+        case 'sales': data = salesData; headers = ['date', 'item', 'qty', 'price', 'cost', 'customer']; break;
+        case 'expenses': data = expensesData; headers = ['date', 'item', 'amount', 'category']; break;
         case 'inventory': data = rawInventoryData.map(i => ({...i, currentStock: (i.qtyIn || 0) - (i.qtyOut || 0)})); headers = ['itemName', 'qtyIn', 'qtyOut', 'currentStock', 'costPrice']; break;
         default: toast.error("Invalid export type."); return;
     }
@@ -292,7 +287,6 @@ export const DataProvider = ({ children }) => {
     expensesSearchTerm, setExpensesSearchTerm, expensesSortColumn, setExpensesSortColumn, expensesSortDirection, setExpensesSortDirection,
     inventorySearchTerm, setInventorySearchTerm, inventorySortColumn, setInventorySortColumn, inventorySortDirection, setInventorySortDirection,
     showExportDropdown, setShowExportDropdown, exportToCsv, exportToPdf,
-    filteredSales, filteredExpenses,
   };
 
   return (

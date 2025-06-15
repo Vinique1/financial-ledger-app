@@ -5,7 +5,6 @@ import { useForm } from '../hooks/useForm';
 import FormInput from './FormInput';
 import ActionButton from './ActionButton';
 import DropdownMenu from './DropdownMenu';
-import { parseISO, startOfDay, endOfDay } from 'date-fns';
 
 export default function ExpensesManagement() {
   const {
@@ -16,7 +15,6 @@ export default function ExpensesManagement() {
     expensesSearchTerm, setExpensesSearchTerm,
     expensesSortColumn, setExpensesSortColumn,
     expensesSortDirection, setExpensesSortDirection,
-    startDateFilter, endDateFilter,
   } = useData();
 
   const expenseCategories = ['Rent', 'Salaries', 'Utilities', 'Marketing', 'Supplies', 'Maintenance', 'Transportation', 'Miscellaneous'];
@@ -48,16 +46,10 @@ export default function ExpensesManagement() {
 
   const sortedAndFilteredExpenses = useMemo(() => {
     return expensesData
-      .filter(expense => {
-        const expenseDate = parseISO(expense.date);
-        const start = startDateFilter ? startOfDay(parseISO(startDateFilter)) : null;
-        const end = endDateFilter ? endOfDay(parseISO(endDateFilter)) : null;
-        if (start && expenseDate < start) return false;
-        if (end && expenseDate > end) return false;
-        
-        return (expense.item && expense.item.toLowerCase().includes(expensesSearchTerm.toLowerCase())) ||
-               (expense.category && expense.category.toLowerCase().includes(expensesSearchTerm.toLowerCase()));
-      })
+      .filter(expense => 
+        (expense.item && expense.item.toLowerCase().includes(expensesSearchTerm.toLowerCase())) ||
+        (expense.category && expense.category.toLowerCase().includes(expensesSearchTerm.toLowerCase()))
+      )
       .sort((a, b) => {
         const aVal = a[expensesSortColumn];
         const bVal = b[expensesSortColumn];
@@ -65,7 +57,7 @@ export default function ExpensesManagement() {
         if (typeof aVal === 'string') return aVal.localeCompare(bVal) * order;
         return (aVal - bVal) * order;
       });
-  }, [expensesData, expensesSearchTerm, expensesSortColumn, expensesSortDirection, startDateFilter, endDateFilter]);
+  }, [expensesData, expensesSearchTerm, expensesSortColumn, expensesSortDirection]);
 
   const tableHeaders = [ { key: 'date', label: 'Date', align: 'left' }, { key: 'item', label: 'Description', align: 'left' }, { key: 'category', label: 'Category', align: 'left' }, { key: 'amount', label: 'Amount', align: 'center' }, { key: 'actions', label: '', align: 'center' } ];
 

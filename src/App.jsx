@@ -16,9 +16,12 @@ const UserManagement = React.lazy(() => import('./components/UserManagement'));
 export default function App() {
   const { user, loadingAuth, logout } = useAuth();
   const {
-    // We now get the filtered data directly from the context
-    filteredSales, 
-    filteredExpenses, 
+    // --- FIX APPLIED HERE ---
+    // Switched from 'filteredSales' and 'filteredExpenses' to the new,
+    // already-filtered 'salesData' and 'expensesData' from the context.
+    salesData, 
+    expensesData, 
+    // --- END OF FIX ---
     inventoryData,
     dateFilterPreset, setDateFilterPreset,
     startDateFilter, setStartDateFilter,
@@ -149,8 +152,8 @@ export default function App() {
         <Suspense fallback={<LoadingSpinner />}>
           {activeTab === 'dashboard' && (
             <DashboardContent
-              salesData={filteredSales}
-              expensesData={filteredExpenses}
+              salesData={salesData}
+              expensesData={expensesData}
               inventoryData={inventoryData}
               startDateFilter={startDateFilter}
               endDateFilter={endDateFilter}
