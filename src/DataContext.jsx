@@ -56,18 +56,13 @@ export const DataProvider = ({ children }) => {
   const getCollectionPath = useCallback((collectionName) => {
     if (!user) return null;
     
-    // --- FIX APPLIED HERE ---
     const appId = import.meta.env.VITE_FIREBASE_APP_ID;
 
-    // Fail loudly if the environment variable is missing
     if (!appId) {
-        // Log an error to the console for developers
         console.error("CRITICAL: VITE_FIREBASE_APP_ID is not defined in the environment variables. The application cannot connect to the database.");
-        // Show a user-friendly error message
         toast.error("Configuration Error: App ID is missing.");
         return null;
     }
-    // --- END OF FIX ---
     
     return `artifacts/${appId}/users/${user.uid}/${collectionName}`;
   }, [user]);
@@ -128,13 +123,16 @@ export const DataProvider = ({ children }) => {
         });
     }
 
-
+    // --- FIX APPLIED HERE ---
+    // The cleanup function for the effect hook.
+    // This now correctly includes unsubRawInventory to prevent resource leaks.
     return () => {
       unsubSales();
       unsubExpenses();
       unsubInventory();
-      unsubRawInventory();
+      unsubRawInventory(); // This was the missing call
     };
+    // --- END OF FIX ---
   }, [user, loadingAuth, getCollectionPath]);
 
   // Data modification functions are now correctly defined here
