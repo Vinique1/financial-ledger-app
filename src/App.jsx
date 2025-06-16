@@ -1,5 +1,5 @@
 // App.jsx
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useAuth } from './AuthContext';
 import { useData } from './DataContext';
 import Login from './Login';
@@ -16,12 +16,8 @@ const UserManagement = React.lazy(() => import('./components/UserManagement'));
 export default function App() {
   const { user, loadingAuth, logout } = useAuth();
   const {
-    // --- FIX APPLIED HERE ---
-    // Switched from 'filteredSales' and 'filteredExpenses' to the new,
-    // already-filtered 'salesData' and 'expensesData' from the context.
     salesData, 
     expensesData, 
-    // --- END OF FIX ---
     inventoryData,
     dateFilterPreset, setDateFilterPreset,
     startDateFilter, setStartDateFilter,
@@ -32,6 +28,13 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showExportDropdown, setShowExportDropdown, exportDropdownRef] = useDetectOutsideClick(false);
+
+  // --- NEW FEATURE: DYNAMIC PAGE TITLES ---
+  useEffect(() => {
+    const tabTitle = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
+    document.title = `${tabTitle} | Business Tracker`;
+  }, [activeTab]);
+  // --- END OF FEATURE ---
 
   if (loadingAuth) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;

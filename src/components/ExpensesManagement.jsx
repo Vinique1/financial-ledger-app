@@ -74,7 +74,9 @@ export default function ExpensesManagement() {
             {expenseCategories.map(cat => (<option key={cat} value={cat}>{cat}</option>))}
           </FormInput>
           <div className="md:col-span-2 flex justify-end space-x-2">
-            <ActionButton type="submit" color="blue" disabled={isSavingExpense}>{isSavingExpense ? 'Saving...' : 'Save Expense'}</ActionButton>
+            <ActionButton type="submit" color="blue" loading={isSavingExpense}>
+              {isSavingExpense ? 'Saving' : 'Save Expense'}
+            </ActionButton>
             <ActionButton type="button" color="gray" onClick={() => { setEditingExpenseId(null); resetForm(); }}>Cancel</ActionButton>
           </div>
         </form>

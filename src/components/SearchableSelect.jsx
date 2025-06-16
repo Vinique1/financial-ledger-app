@@ -1,64 +1,66 @@
 // src/components/SearchableSelect.jsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useDetectOutsideClick } from '../hooks/useDetectOutsideClick';
 
-export default function SearchableSelect({ options, value, onChange, placeholder = 'Select an option' }) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function SearchableSelect({ options, value, onChange, placeholder = "Select..." }) {
+  const [isOpen, setIsOpen, dropdownRef] = useDetectOutsideClick(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const wrapperRef = useRef(null);
-
-  const selectedOption = options.find(option => option.value === value);
+  const [filteredOptions, setFilteredOptions] = useState(options);
 
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
+    if (searchTerm === '') {
+      setFilteredOptions(options);
+    } else {
+      setFilteredOptions(
+        options.filter(option =>
+          option.label.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [wrapperRef]);
+  }, [searchTerm, options]);
 
-  const filteredOptions = options.filter(option =>
-    option.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
+  // --- FIX APPLIED HERE ---
+  // This function is now called when a user clicks an item.
+  // It calls the 'onChange' prop to update the parent form's state,
+  // sets the search term to the selected value, and closes the dropdown.
   const handleSelectOption = (optionValue) => {
-    onChange({ target: { id: 'item', value: optionValue } }); // Mimic event object for useForm
+    onChange(optionValue); // This was the missing call
+    setSearchTerm(optionValue);
     setIsOpen(false);
-    setSearchTerm('');
   };
 
+  useEffect(() => {
+    // Sync the search term with the external value
+    setSearchTerm(value || '');
+  }, [value]);
+
   return (
-    <div className="relative" ref={wrapperRef}>
+    <div className="relative" ref={dropdownRef}>
       <input
         type="text"
-        className="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 border-gray-300"
-        placeholder={placeholder}
-        value={searchTerm || (selectedOption ? selectedOption.label : '')}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          if (!isOpen) setIsOpen(true);
-        }}
+        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
         onFocus={() => setIsOpen(true)}
+        placeholder={placeholder}
       />
       {isOpen && (
-        <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
           {filteredOptions.length > 0 ? (
-            filteredOptions.map(option => (
-              <li
+            filteredOptions.map((option) => (
+              <div
                 key={option.value}
-                className="px-3 py-2 cursor-pointer hover:bg-blue-500 hover:text-white"
+                // The onClick handler now correctly calls our new function
                 onClick={() => handleSelectOption(option.value)}
+                className="px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white cursor-pointer"
               >
                 {option.label}
-              </li>
+              </div>
             ))
           ) : (
-            <li className="px-3 py-2 text-gray-500">No options found</li>
+            <div className="px-4 py-2 text-sm text-gray-500">No options found</div>
           )}
-        </ul>
+        </div>
       )}
     </div>
   );

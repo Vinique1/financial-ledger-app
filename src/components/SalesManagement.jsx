@@ -80,7 +80,14 @@ export default function SalesManagement() {
             <FormInput id="date" label="Sale Date" type="date" value={formData.date} onChange={handleChange} error={errors.date} />
             <div>
               <label htmlFor="item" className="block text-sm font-medium text-gray-700">Item</label>
-              <SearchableSelect options={inventoryOptions} value={formData.item} onChange={(val) => handleChange({ target: { id: 'item', value: val }})} placeholder="Search for an item..." />
+              {/* --- FIX APPLIED HERE --- */}
+              <SearchableSelect 
+                options={inventoryOptions} 
+                value={formData.item} 
+                onChange={(selectedValue) => handleChange({ target: { id: 'item', value: selectedValue } })}
+                placeholder="Search for an item..." 
+              />
+              {/* --- END OF FIX --- */}
                {errors.item && <p className="text-red-500 text-xs mt-1">{errors.item}</p>}
             </div>
             <FormInput id="customer" label="Customer" value={formData.customer} onChange={handleChange} error={errors.customer} />
@@ -88,7 +95,9 @@ export default function SalesManagement() {
             <FormInput id="price" label="Sale Price per Unit" type="number" value={formData.price} onChange={handleChange} error={errors.price} />
             <FormInput id="cost" label="Cost per Unit" type="number" value={formData.cost} readOnly disabled />
             <div className="lg:col-span-3 flex justify-end space-x-2">
-                <ActionButton type="submit" color="blue" disabled={isSavingSale}>{isSavingSale ? 'Saving...' : 'Save Sale'}</ActionButton>
+                <ActionButton type="submit" color="blue" loading={isSavingSale}>
+                  {isSavingSale ? 'Saving' : 'Save Sale'}
+                </ActionButton>
                 <ActionButton type="button" color="gray" onClick={() => { setEditingSaleId(null); resetForm(); }}>Cancel</ActionButton>
             </div>
         </form>

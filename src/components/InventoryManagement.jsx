@@ -74,7 +74,9 @@ export default function InventoryManagement() {
           <FormInput id="qtyIn" label="Quantity In" type="number" value={formData.qtyIn} onChange={handleChange} error={errors.qtyIn} />
           <FormInput id="costPrice" label="Cost Price" type="number" value={formData.costPrice} onChange={handleChange} error={errors.costPrice} />
           <div className="md:col-span-2 flex justify-end space-x-2">
-            <ActionButton type="submit" color="blue" disabled={isSavingInventory}>{isSavingInventory ? 'Saving...' : 'Save Item'}</ActionButton>
+            <ActionButton type="submit" color="blue" loading={isSavingInventory}>
+              {isSavingInventory ? 'Saving' : 'Save Item'}
+            </ActionButton>
             <ActionButton type="button" color="gray" onClick={() => { setEditingInventoryId(null); resetForm(); }}>Cancel</ActionButton>
           </div>
         </form>
