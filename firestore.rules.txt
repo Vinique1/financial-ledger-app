@@ -1,0 +1,56 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if the current user has a specific role.
+    function hasRole(role) {
+      return get(/databases/$(database)/documents/user_profiles/$(request.auth.uid)).data.role == role;
+    }
+
+    // Helper function to check if the current user has one of a list of roles.
+    function hasAnyRole(roles) {
+      return get(/databases/$(database)/documents/user_profiles/$(request.auth.uid)).data.role in roles;
+    }
+    
+    // Helper function to verify the user is authenticated and has a role profile.
+    function isAuthenticated() {
+        return request.auth != null && exists(/databases/$(database)/documents/user_profiles/$(request.auth.uid));
+    }
+
+    // User Profiles:
+    // Only Admins can create or edit profiles.
+    // Users can read their own profile, and Admins can read any profile.
+    match /user_profiles/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || hasRole('admin'));
+      allow write: if isAuthenticated() && hasRole('admin');
+    }
+
+    // --- Data Collections ---
+    
+    // Sales Data:
+    // Only Admins or Sales Managers who own the data can read/write.
+    match /artifacts/{appId}/users/{userId}/sales/{saleId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId && hasAnyRole(['admin', 'sales_manager']);
+    }
+
+    // Expenses Data:
+    // Only Admins or Expense Managers who own the data can read/write.
+    match /artifacts/{appId}/users/{userId}/expenses/{expenseId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId && hasAnyRole(['admin', 'expense_manager']);
+    }
+
+    // Inventory Data:
+    // Only Admins or Inventory Managers who own the data can read/write.
+    match /artifacts/{appId}/users/{userId}/inventory/{inventoryId} {
+       allow read, write: if isAuthenticated() && request.auth.uid == userId && hasAnyRole(['admin', 'inventory_manager']);
+    }
+
+    // Viewer Access:
+    // Allow users with the 'viewer' role to read all data for a specific user,
+    // but not write any of it. This rule is separate to avoid granting write access.
+    match /artifacts/{appId}/users/{userId}/{collection}/{docId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId && hasAnyRole(['admin', 'sales_manager', 'expense_manager', 'inventory_manager', 'viewer']);
+    }
+  }
+}

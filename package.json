@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "chart.js": "^4.4.3",
+    "date-fns": "^4.1.0",
     "firebase": "^10.12.2",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^3.8.2",
